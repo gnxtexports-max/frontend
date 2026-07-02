@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/favicon.ico", "destination": "/favicon.ico" },
+    { "source": "/(.*)\\.(js|css|json|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot)", "destination": "/$1.$2" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
