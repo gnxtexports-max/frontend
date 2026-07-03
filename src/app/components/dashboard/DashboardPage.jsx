@@ -72,7 +72,7 @@ export function DashboardPage() {
         const pods = invoicesRes.data.data.map(inv => ({
           id: inv.invoiceNumber,
           dealer: inv.customerName,
-          date: format(new Date(inv.invoiceDate || inv.createdAt), "MMM d, yyyy"),
+          date: new Date(inv.invoiceDate || inv.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }),
           shipmentId: inv.plantReferenceNumber || "N/A",
           status: inv.status === "Pending" ? "Awaiting Upload" : "Verification Pending"
         }));
