@@ -1,6 +1,6 @@
-import { FileText, Upload, Loader2, Plus } from "lucide-react";
+import { FileText, Upload, Loader2, Plus, Truck, MapPin, Car } from "lucide-react";
 import { Button as ButtonUI } from "../ui/button";
-
+import { Link } from "react-router";
 
 
 export function InvoiceHeader({
@@ -26,7 +26,44 @@ export function InvoiceHeader({
         </p>
       </div>
 
+
       <div className="flex items-center gap-3">
+
+
+        <Link
+          to="/shipments"
+          state={{ openCreate: true }}
+          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200"
+        >
+          <Plus className="w-4 h-4" />
+          Create Shipment
+        </Link>
+
+        <Link
+          to="/shipments"
+          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200"
+        >
+          <Truck className="w-4 h-4" />
+          Shipments
+        </Link>
+
+        <Link
+          to="/trips"
+          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200"
+        >
+          <MapPin className="w-4 h-4" />
+          Trip Tracking
+        </Link>
+
+        <Link
+          to="/vehicles"
+          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200"
+        >
+          <Car className="w-4 h-4" />
+          Vehicles
+        </Link>
+
+
         {canCreate && (
           <ButtonUI
             onClick={onAddClick}

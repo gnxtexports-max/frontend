@@ -7,11 +7,12 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import { Button } from "../ui/button";
 import StatusBadge from "./StatusBadge";
 import DeleteButton from "./DeleteButton";
 import CancelButton from "./CancelButton";
 
-export function PlantRow({ plant, onDeleted, onStatusUpdated, canEdit, canDelete }) {
+export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEdit, canDelete }) {
   const [expanded, setExpanded] = useState(false);
 
   const invoices = plant.invoices ?? [];
@@ -88,11 +89,51 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, canEdit, canDelete
         </TableCell>
 
         <TableCell>
+          <span className="text-sm font-medium text-slate-700">
+            {first?.tyre ?? 0}
+          </span>
+        </TableCell>
+
+        <TableCell>
+          <span className="text-sm font-medium text-slate-700">
+            {first?.tube ?? 0}
+          </span>
+        </TableCell>
+
+        <TableCell>
+          <span className="text-sm font-medium text-slate-700">
+            {first?.flap ?? 0}
+          </span>
+        </TableCell>
+
+        <TableCell>
+          <span className="text-sm font-medium text-slate-700">
+            {first?.quantity ?? 0}
+          </span>
+        </TableCell>
+
+        <TableCell>
+          <span className="text-sm font-medium text-slate-700">
+            {first?.weight ?? 0} <span className="text-[10px] text-muted-foreground">kg</span>
+          </span>
+        </TableCell>
+
+        <TableCell>
           <StatusBadge status={first?.status || plant.status} isDelayed={isPendingDelayed} />
         </TableCell>
 
         <TableCell onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-3">
+            {canEdit && first && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-[#1d4ed8] hover:bg-blue-50 font-medium text-xs border border-transparent hover:border-blue-200 rounded"
+                onClick={() => onEditClick({ ...first, plantNumber: plant.plantNumber, customerName: plant.customerName, location: plant.location })}
+              >
+                Edit
+              </Button>
+            )}
             {canEdit && first && first.status !== "Cancelled" && (
               <CancelButton
                 invoiceId={first._id}
@@ -135,11 +176,51 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, canEdit, canDelete
             </TableCell>
 
             <TableCell>
+              <span className="text-sm text-slate-600">
+                {inv.tyre ?? 0}
+              </span>
+            </TableCell>
+
+            <TableCell>
+              <span className="text-sm text-slate-600">
+                {inv.tube ?? 0}
+              </span>
+            </TableCell>
+
+            <TableCell>
+              <span className="text-sm text-slate-600">
+                {inv.flap ?? 0}
+              </span>
+            </TableCell>
+
+            <TableCell>
+              <span className="text-sm text-slate-600">
+                {inv.quantity ?? 0}
+              </span>
+            </TableCell>
+
+            <TableCell>
+              <span className="text-sm text-slate-600">
+                {inv.weight ?? 0} <span className="text-[10px] text-muted-foreground">kg</span>
+              </span>
+            </TableCell>
+
+            <TableCell>
               <StatusBadge status={inv.status} />
             </TableCell>
 
             <TableCell onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-3">
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-[#1d4ed8] hover:bg-blue-50 font-medium text-xs border border-transparent hover:border-blue-200 rounded"
+                    onClick={() => onEditClick({ ...inv, plantNumber: plant.plantNumber, customerName: plant.customerName, location: plant.location })}
+                  >
+                    Edit
+                  </Button>
+                )}
                 {canEdit && inv.status !== "Cancelled" && (
                   <CancelButton
                     invoiceId={inv._id}

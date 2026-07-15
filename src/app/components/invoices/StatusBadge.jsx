@@ -20,7 +20,7 @@ export function StatusBadge({ status, isDelayed }) {
       {isDelayed && status === "Pending" && (
         <AlertCircle className="w-3 h-3 mr-1 text-red-600" />
       )}
-      {status}
+      {status === "Pending" ? "Awaiting Shipment" : status}
     </div>
   );
 

@@ -38,11 +38,12 @@ export function InvoiceFiltersBar({
 
         <SelectContent>
           <SelectItem value="All">All Status</SelectItem>
-          <SelectItem value="Pending">Pending</SelectItem>
+          <SelectItem value="Pending">Awaiting Shipment</SelectItem>
           <SelectItem value="Assigned">Assigned</SelectItem>
           <SelectItem value="In Transit">In Transit</SelectItem>
           <SelectItem value="Delivered">Delivered</SelectItem>
           <SelectItem value="Cancelled">Cancelled</SelectItem>
+          <SelectItem value="Returned - Awaiting">Returned - Awaiting</SelectItem>
         </SelectContent>
       </Select>
     </div>

@@ -4,6 +4,25 @@ import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { SectionLabel, DetailField } from "../ui/ShipmentUIComponents";
 
+const loadHtml2Pdf = () => {
+  return new Promise((resolve, reject) => {
+    if (window.html2pdf) {
+      resolve(window.html2pdf);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    script.crossOrigin = "anonymous";
+    script.onload = () => {
+      resolve(window.html2pdf);
+    };
+    script.onerror = (err) => {
+      reject(new Error("Failed to load html2pdf library"));
+    };
+    document.body.appendChild(script);
+  });
+};
+
 export function PODSection({
   shipment,
   detail,
@@ -30,6 +49,7 @@ export function PODSection({
             setPodViewImage={setPodViewImage}
             shipmentStatus={shipment.status}
             canEdit={canEdit}
+            shipment={shipment}
           />
         ))}
       </div>
@@ -47,6 +67,7 @@ function DestinationPODCard({
   setPodViewImage,
   shipmentStatus = "Pending",
   canEdit = true,
+  shipment,
 }) {
   const [receiverName, setReceiverName] = useState(dest.podReceiverName || "");
   const [remarks, setRemarks] = useState(dest.podRemarks || "");
@@ -61,6 +82,414 @@ function DestinationPODCard({
   const isClosed = shipmentStatus === "Cancelled";
 
   const lrDisplay = dest.lrNumber || `LR-TEMP-${index + 1}`;
+
+  const handleDownloadLR = () => {
+    if (!shipment) return;
+    const currentDate = new Date().toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    }).replace(/\//g, "-");
+
+    const vehicleNo = shipment.vehicleNumber || (typeof shipment.vehicleId === "object" ? shipment.vehicleId?.vehicleNo : "—");
+    const fromAddress = "Kottayam CFA (CEAT LTD) GNXT Power Corp, Kottayam";
+    const toAddress = `${dest.customerName || "—"}, ${dest.deliveryLocation || "—"}`;
+    const invoices = (dest.invoiceIds || []).filter(inv => typeof inv === "object" && inv !== null);
+
+    // Chunk invoices into pages of maximum 16 entries
+    const invoicesPerPage = 16;
+    const pages = [];
+    for (let i = 0; i < invoices.length; i += invoicesPerPage) {
+      pages.push(invoices.slice(i, i + invoicesPerPage));
+    }
+    if (pages.length === 0) {
+      pages.push([]);
+    }
+
+    const renderPage = (pageInvoices, pageIndex, totalPages) => {
+      let totalQty = 0;
+      let totalWeight = 0;
+      let totalFlap = 0;
+      let totalTube = 0;
+      let totalTyre = 0;
+
+      const rows = pageInvoices.map(inv => {
+        const invQty = Number(inv.quantity) || 0;
+        const invWt = Number(inv.weight) || 0;
+        const invFlap = Number(inv.flap) || 0;
+        const invTube = Number(inv.tube) || 0;
+        const invTyre = Number(inv.tyre) || 0;
+
+        totalQty += invQty;
+        totalWeight += invWt;
+        totalFlap += invFlap;
+        totalTube += invTube;
+        totalTyre += invTyre;
+
+        const formattedDate = inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        }) : "—";
+
+        return {
+          no: inv.invoiceNumber || "—",
+          date: formattedDate,
+          qty: invQty,
+          weight: invWt.toFixed(2),
+          flap: invFlap,
+          tube: invTube,
+          tyre: invTyre
+        };
+      });
+
+      const pageIndicator = totalPages > 1 ? ` (Page ${pageIndex + 1} of ${totalPages})` : "";
+      const displayLR = `${lrDisplay}${pageIndicator}`;
+      const spacingClass = pageInvoices.length > 8 ? "compact" : "spacious";
+
+      const renderCopy = () => `
+        <div class="lr-copy ${spacingClass}">
+          <div class="lr-copy-title-container">
+            <h2 class="lr-copy-title">GNXT POWER CORP</h2>
+            <div class="lr-copy-subtitle-container">
+              <div class="lr-copy-subtitle">GOODS CONSIGNMENT NOTE</div>
+            </div>
+          </div>
+          
+          <div class="lr-meta-row">
+            <div>LR No. &nbsp;<span class="lr-meta-lr">${displayLR}</span></div>
+            <div>Vehicle No. &nbsp;<strong>${vehicleNo}</strong></div>
+            <div>Date: &nbsp;<strong>${currentDate}</strong></div>
+          </div>
+
+          <div class="lr-from-to">
+            <div class="lr-from">
+              <strong>From :</strong> &nbsp; ${fromAddress}
+            </div>
+            <div class="lr-to">
+              <strong>To :</strong> &nbsp; ${toAddress}
+            </div>
+          </div>
+
+          <div class="lr-table-container">
+            <table class="lr-table">
+              <thead>
+                <tr>
+                  <th colspan="6" class="table-title">INVOICE DETAILS</th>
+                </tr>
+                <tr>
+                  <th>INVOICE NO</th>
+                  <th>INVOICE DATE</th>
+                  <th>WEIGHT (KG)</th>
+                  <th>FLAP</th>
+                  <th>TUBE</th>
+                  <th>TYRE</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr>
+                    <td>${r.no}</td>
+                    <td>${r.date}</td>
+                    <td>${r.weight}</td>
+                    <td>${r.flap}</td>
+                    <td>${r.tube}</td>
+                    <td>${r.tyre}</td>
+                  </tr>
+                `).join("")}
+                <tr class="total-row">
+                  <td colspan="2">TOTAL</td>
+                  <td>${totalWeight.toFixed(2)} kg</td>
+                  <td>${totalFlap}</td>
+                  <td>${totalTube}</td>
+                  <td>${totalTyre}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="lr-signatures">
+            <div class="lr-sig-box">
+              <div class="lr-sig-label">SUPERVISOR SIGNATURE</div>
+              <div class="lr-sig-dotted-line"></div>
+            </div>
+            <div class="lr-sig-box">
+              <div class="lr-sig-label">DRIVER NAME & SIGNATURE</div>
+              <div class="lr-sig-dotted-line"></div>
+            </div>
+            <div class="lr-sig-box">
+              <div class="lr-sig-label">RECEIVED BY CLIENT WITH SIGNATURE AND SEAL</div>
+              <div class="lr-sig-dotted-line"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      return `
+        <div class="a4-page">
+          ${renderCopy()}
+          <div class="dashed-separator"></div>
+          ${renderCopy()}
+        </div>
+      `;
+    };
+
+    const html = `
+      <div class="lr-pdf-container">
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+          
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          .lr-pdf-container {
+            font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #000;
+            background-color: #fff;
+          }
+
+          .a4-page {
+            width: 210mm;
+            height: 295mm;
+            padding: 3mm 4mm;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            page-break-after: always;
+            break-after: page;
+          }
+
+          .a4-page:last-child {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+
+          .lr-copy {
+            border: 1.5px solid #000;
+            padding: 0;
+            box-sizing: border-box;
+            height: 143mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            background-color: #fff;
+          }
+
+          /* Dynamic Spacing Configuration */
+          .lr-copy.spacious {
+            --padding-meta-tb: 5px;
+            --font-meta: 11px;
+            --padding-fromto-tb: 5px;
+            --font-fromto: 11px;
+            --padding-table-tb: 4px;
+            --font-table: 10.5px;
+            --sig-height: 16mm;
+            --font-sig: 9px;
+          }
+
+          .lr-copy.compact {
+            --padding-meta-tb: 1px;
+            --font-meta: 9.5px;
+            --padding-fromto-tb: 2px;
+            --font-fromto: 9.5px;
+            --padding-table-tb: 1px;
+            --font-table: 9px;
+            --sig-height: 10mm;
+            --font-sig: 7.5px;
+          }
+
+          .lr-copy-title-container {
+            text-align: center;
+            padding: 4px 12px;
+          }
+
+          .lr-copy-title {
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin: 0;
+            text-transform: uppercase;
+            padding-bottom: 1px;
+          }
+
+          .lr-copy-subtitle-container {
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+            padding: 2px 0;
+            margin-top: 1px;
+          }
+
+          .lr-copy-subtitle {
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+          }
+
+          .lr-meta-row {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--padding-meta-tb) 12px;
+            font-size: var(--font-meta);
+            font-weight: 600;
+            border-bottom: 2px solid #000;
+          }
+
+          .lr-meta-lr {
+            color: #cc0000;
+            font-weight: 700;
+          }
+
+          .lr-from-to {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 2px solid #000;
+            font-size: var(--font-fromto);
+            line-height: 1.4;
+            font-weight: 500;
+          }
+
+          .lr-from, .lr-to {
+            padding: var(--padding-fromto-tb) 12px;
+            box-sizing: border-box;
+          }
+
+          .lr-from {
+            border-right: 2px solid #000;
+          }
+
+          .lr-table-container {
+            flex-grow: 3;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .lr-table {
+            width: 100%;
+            height: 100%;
+            border-collapse: collapse;
+            border: none;
+          }
+
+          .lr-table th, .lr-table td {
+            border: 1.5px solid #000;
+            padding: var(--padding-table-tb) 8px;
+            font-size: var(--font-table);
+            text-align: center;
+            line-height: 1.2;
+            vertical-align: middle;
+            font-weight: 500;
+          }
+
+          .lr-table th:first-child, .lr-table td:first-child {
+            padding-left: 12px;
+            border-left: none;
+          }
+
+          .lr-table th:last-child, .lr-table td:last-child {
+            padding-right: 12px;
+            border-right: none;
+          }
+
+          .lr-table th {
+            background-color: #f3f4f6;
+            font-weight: 700;
+          }
+
+          .lr-table th.table-title {
+            background-color: #e5e7eb;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 11.5px;
+            padding: 3px 12px;
+            letter-spacing: 1px;
+            border-top: none;
+          }
+
+          .lr-table .total-row td {
+            font-weight: 700;
+            background-color: #f3f4f6;
+            border-bottom: none;
+          }
+
+          .lr-signatures {
+            display: flex;
+            border-top: 1.5px solid #000;
+            height: var(--sig-height);
+            box-sizing: border-box;
+          }
+
+          .lr-sig-box {
+            width: 33.33%;
+            border-right: 1.5px solid #000;
+            padding: 4px 8px;
+            font-size: var(--font-sig);
+            font-weight: 700;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-sizing: border-box;
+          }
+
+          .lr-sig-box:first-child {
+            padding-left: 12px;
+          }
+
+          .lr-sig-box:last-child {
+            border-right: none;
+            padding-right: 12px;
+          }
+
+          .lr-sig-label {
+            text-transform: uppercase;
+            margin-bottom: 2px;
+            line-height: 1.2;
+          }
+
+          .lr-sig-dotted-line {
+            border-bottom: 1.5px dotted #000;
+            width: 90%;
+            margin: 0 auto;
+            height: 0;
+            padding-top: 4px;
+          }
+
+          .dashed-separator {
+            border-top: 2px dashed #000;
+            width: 100%;
+            margin: 0.5mm 0;
+          }
+        </style>
+        ${pages.map((pageInvoices, idx) => renderPage(pageInvoices, idx, pages.length)).join("")}
+      </div>
+    `;
+
+    loadHtml2Pdf().then((html2pdf) => {
+      const opt = {
+        margin: 0,
+        filename: `LR-${lrDisplay}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+      };
+
+      html2pdf()
+        .from(html)
+        .set(opt)
+        .save()
+        .catch((err) => {
+          console.error("PDF generation error:", err);
+        });
+    }).catch((err) => {
+      alert("Failed to load PDF library. Please check your internet connection.");
+      console.error(err);
+    });
+  };
 
   const handleSave = async () => {
     setUploading(true);
@@ -87,9 +516,15 @@ function DestinationPODCard({
           <div className="w-6 h-6 rounded-full bg-[#1d4ed8]/10 text-[#1d4ed8] text-xs font-bold flex items-center justify-center">
             {index + 1}
           </div>
-          <div>
+          <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-[#1d4ed8]">Destination {index + 1} of {totalCount}</span>
             <span className="ml-2.5 text-xs text-muted-foreground font-semibold">LR: {lrDisplay}</span>
+            <button
+              onClick={handleDownloadLR}
+              className="ml-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors cursor-pointer border border-blue-200"
+            >
+              <Download className="w-3 h-3" /> Download LR
+            </button>
           </div>
         </div>
         <span

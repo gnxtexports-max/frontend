@@ -21,7 +21,7 @@ export function ItemsBreakdown({ shipment, detail, totalQty, totalWt }) {
         {/* Summary row */}
         <div className="bg-[#fafbfc] px-5 py-3 space-y-2.5">
           <div className="flex items-center gap-6">
-            <SummaryPill icon={<Weight className="w-3.5 h-3.5 text-[#1d4ed8]" />} label="Total Weight" value={`${totalWt} kg`} />
+            <SummaryPill icon={<Weight className="w-3.5 h-3.5 text-[#1d4ed8]" />} label="Total Weight" value={`${(totalWt || 0).toFixed(1)} kg`} />
             <SummaryPill icon={<Hash className="w-3.5 h-3.5 text-[#1d4ed8]" />}   label="Total Items"  value={`${totalQty}`} />
           </div>
           <Separator />
@@ -62,7 +62,7 @@ export function ItemsBreakdown({ shipment, detail, totalQty, totalWt }) {
                 </div>
                 <div>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Weight</p>
-                  <p className="text-sm text-foreground mt-0.5">{dest.weightKg ?? 0} kg</p>
+                  <p className="text-sm text-foreground mt-0.5">{(dest.weightKg ?? 0).toFixed(1)} kg</p>
                 </div>
               </div>
             ))}

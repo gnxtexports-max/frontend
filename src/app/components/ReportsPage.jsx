@@ -16,6 +16,7 @@ import {
   ChevronRight,
   TrendingDown,
   Download,
+  X,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -71,6 +72,7 @@ export function ReportsPage() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [previewImage, setPreviewImage] = useState(null);
 
   // Fetch filter options on mount & refresh
   useEffect(() => {
@@ -163,24 +165,72 @@ export function ReportsPage() {
     XLSX.writeFile(workbook, `GNXT_Shipment_Expenses_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
+  const getMappedStatus = (statusVal) => {
+    const s = String(statusVal || "").trim().toLowerCase();
+    if (s === "delivered" || s === "closed") return "closed";
+    if (s === "in transit") return "delivery pending";
+    if (s === "pending") return "vehicle not arrived";
+    return s;
+  };
+
+  const getMappedPod = (podSubmitted) => {
+    if (podSubmitted === "Yes") return "uploaded";
+    return "pending";
+  };
+
   const exportCompletedInvoices = () => {
-    const rows = invoices.map((inv) => ({
-      "Invoice No": inv.invoiceNumber || "—",
-      "Customer Name": inv.customerName || "—",
-      "Destination Location": inv.location || "—",
-      "Plant Ref No": inv.plantReferenceNumber || "—",
-      "Status": inv.status || "—",
-      "Delivery Completed Date": inv.deliveredAt
-        ? new Date(inv.deliveredAt).toLocaleString("en-IN")
-        : new Date(inv.updatedAt).toLocaleDateString("en-IN"),
-    }));
+    const rows = [];
+    invoices.forEach((lrRecord) => {
+      const baseRow = {
+        "customer name": lrRecord.customerName || "—",
+        "Customer Location": lrRecord.location || "—",
+        "status": getMappedStatus(lrRecord.status),
+        "pod": getMappedPod(lrRecord.podSubmitted),
+        "LR no": lrRecord.lrNumber || "—",
+        "date of despatch": lrRecord.dispatchDate
+          ? new Date(lrRecord.dispatchDate).toLocaleDateString("en-IN")
+          : "—",
+      };
+
+      if (lrRecord.invoices && lrRecord.invoices.length > 0) {
+        lrRecord.invoices.forEach((inv) => {
+          rows.push({
+            "Plant": inv.plantReferenceNumber || lrRecord.plantReferenceNumber || "—",
+            "Invoice No": inv.invoiceNumber || "—",
+            "Invoice Dt": inv.invoiceDate
+              ? new Date(inv.invoiceDate).toLocaleDateString("en-IN")
+              : "—",
+            ...baseRow,
+          });
+        });
+      } else {
+        const refs = (lrRecord.plantReferenceNumber || "").split(",").map(p => p.trim()).filter(Boolean);
+        if (refs.length > 0) {
+          refs.forEach((ref) => {
+            rows.push({
+              "Plant": ref,
+              "Invoice No": "—",
+              "Invoice Dt": "—",
+              ...baseRow,
+            });
+          });
+        } else {
+          rows.push({
+            "Plant": lrRecord.plantReferenceNumber || "—",
+            "Invoice No": "—",
+            "Invoice Dt": "—",
+            ...baseRow,
+          });
+        }
+      }
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Completed Invoices");
 
     worksheet["!cols"] = [
-      { wch: 18 }, { wch: 25 }, { wch: 22 }, { wch: 18 }, { wch: 15 }, { wch: 25 }
+      { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 25 }, { wch: 22 }, { wch: 18 }, { wch: 15 }, { wch: 20 }, { wch: 18 }
     ];
 
     XLSX.writeFile(workbook, `GNXT_Completed_Invoices_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -684,62 +734,144 @@ export function ReportsPage() {
         )}
 
         {/* TAB 2: COMPLETED INVOICES TABLE */}
-        {activeTab === "invoices" && (
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h4 className="font-bold text-slate-800 text-sm">Completed Invoices Historical Ledger</h4>
-                <p className="text-xs text-slate-400">Verifiable ledger tracking all completed invoice deliveries.</p>
+        {activeTab === "invoices" && (() => {
+          const flatInvoicesList = [];
+          invoices.forEach((lrRecord) => {
+            const baseRecord = {
+              lrNumber: lrRecord.lrNumber,
+              customerName: lrRecord.customerName,
+              location: lrRecord.location,
+              status: lrRecord.status,
+              dispatchDate: lrRecord.dispatchDate,
+              podSubmitted: lrRecord.podSubmitted,
+              podReceiverName: lrRecord.podReceiverName,
+              podRemarks: lrRecord.podRemarks,
+              podImages: lrRecord.podImages,
+            };
+
+            if (lrRecord.invoices && lrRecord.invoices.length > 0) {
+              lrRecord.invoices.forEach((inv) => {
+                flatInvoicesList.push({
+                  ...baseRecord,
+                  plantNumber: inv.plantReferenceNumber || lrRecord.plantReferenceNumber,
+                  invoiceNumber: inv.invoiceNumber,
+                  invoiceDate: inv.invoiceDate,
+                });
+              });
+            } else {
+              const refs = (lrRecord.plantReferenceNumber || "").split(",").map(p => p.trim()).filter(Boolean);
+              if (refs.length > 0) {
+                refs.forEach((ref) => {
+                  flatInvoicesList.push({
+                    ...baseRecord,
+                    plantNumber: ref,
+                    invoiceNumber: "—",
+                    invoiceDate: null,
+                  });
+                });
+              } else {
+                flatInvoicesList.push({
+                  ...baseRecord,
+                  plantNumber: lrRecord.plantReferenceNumber || "—",
+                  invoiceNumber: "—",
+                  invoiceDate: null,
+                });
+              }
+            }
+          });
+
+          return (
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">Completed Invoices Historical Ledger</h4>
+                  <p className="text-xs text-slate-400">Verifiable ledger tracking all completed invoice deliveries.</p>
+                </div>
               </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-100 text-left">
-                <thead className="bg-[#f8f9fb] text-slate-400 uppercase text-[10px] font-bold tracking-wider">
-                  <tr>
-                    <th className="py-3 px-5">Invoice No</th>
-                    <th className="py-3 px-3">Customer Name</th>
-                    <th className="py-3 px-3">Destination Location</th>
-                    <th className="py-3 px-3">Plant Ref No</th>
-                    <th className="py-3 px-3">Completion Status</th>
-                    <th className="py-3 px-5 text-right">Delivery Complete Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-10">
-                        <RefreshCw className="w-5 h-5 animate-spin mx-auto text-slate-300" />
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-100 text-left border-collapse">
+                  <thead className="bg-[#f8f9fb] text-slate-400 uppercase text-[9px] font-bold tracking-wider border-b border-slate-200">
+                    <tr className="divide-x divide-slate-200">
+                      <th className="py-3 px-4">Plant</th>
+                      <th className="py-3 px-3">Invoice No</th>
+                      <th className="py-3 px-3">Invoice Dt</th>
+                      <th className="py-3 px-3">customer name</th>
+                      <th className="py-3 px-3">Customer Location</th>
+                      <th className="py-3 px-3">status</th>
+                      <th className="py-3 px-3">pod</th>
+                      <th className="py-3 px-3">LR no</th>
+                      <th className="py-3 px-4">date of despatch</th>
                     </tr>
-                  ) : invoices.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-12 text-slate-400">No completed invoices matching criteria.</td>
-                    </tr>
-                  ) : (
-                    invoices.map((inv) => (
-                      <tr key={inv._id} className="hover:bg-slate-50/50">
-                        <td className="py-3 px-5 font-bold text-[#1d4ed8]">{inv.invoiceNumber}</td>
-                        <td className="py-3 px-3 font-semibold text-slate-700">{inv.customerName}</td>
-                        <td className="py-3 px-3">{inv.location || "—"}</td>
-                        <td className="py-3 px-3">{inv.plantReferenceNumber}</td>
-                        <td className="py-3 px-3">
-                          <span className="inline-flex text-[9px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                            {inv.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-5 text-right font-medium text-slate-500">
-                          {inv.deliveredAt
-                            ? new Date(inv.deliveredAt).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
-                            : new Date(inv.updatedAt).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={9} className="text-center py-10">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto text-slate-300" />
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : flatInvoicesList.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="text-center py-12 text-slate-400">No completed invoices matching criteria.</td>
+                      </tr>
+                    ) : (
+                      flatInvoicesList.map((row, idx) => {
+                        const displayStatus = getMappedStatus(row.status);
+                        const displayPod = getMappedPod(row.podSubmitted);
+
+                        return (
+                          <tr key={`${row.lrNumber}-${row.plantNumber}-${row.invoiceNumber}-${idx}`} className="hover:bg-slate-50/50 divide-x divide-slate-100">
+                            <td className="py-3 px-4 font-mono font-semibold text-slate-700">{row.plantNumber}</td>
+                            <td className="py-3 px-3 font-semibold text-[#1d4ed8]">{row.invoiceNumber}</td>
+                            <td className="py-3 px-3 text-slate-500">
+                              {row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("en-IN") : "—"}
+                            </td>
+                            <td className="py-3 px-3 font-semibold text-slate-700 max-w-[180px] truncate" title={row.customerName}>
+                              {row.customerName}
+                            </td>
+                            <td className="py-3 px-3 text-slate-500">{row.location || "—"}</td>
+                            <td className="py-3 px-3">
+                              <span
+                                className={cn(
+                                  "inline-flex text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border",
+                                  displayStatus === "closed"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                    : displayStatus === "delivery pending"
+                                    ? "bg-blue-50 text-blue-700 border-blue-100"
+                                    : "bg-amber-50 text-amber-700 border-amber-100"
+                                )}
+                              >
+                                {displayStatus}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span
+                                className={cn(
+                                  "inline-flex text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border",
+                                  displayPod === "uploaded"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                    : "bg-rose-50 text-rose-700 border-rose-100"
+                                )}
+                              >
+                                {displayPod}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 font-bold text-slate-800 tabular-nums">{row.lrNumber}</td>
+                            <td className="py-3 px-4 text-slate-400 font-medium whitespace-nowrap">
+                              {row.dispatchDate
+                                ? new Date(row.dispatchDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                                : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TAB 3: FLEET PERFORMANCE TABLES (DRIVERS & VEHICLES) */}
         {activeTab === "fleet" && (
@@ -870,6 +1002,27 @@ export function ReportsPage() {
           </div>
         )}
       </div>
+
+      {/* ── IMAGE PREVIEW MODAL ── */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div 
+            className="relative max-w-4xl max-h-[90vh] bg-white rounded-xl overflow-hidden shadow-2xl p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="absolute top-4 right-4 bg-black/50 text-white rounded-full p-2 hover:bg-black/80 transition-colors shadow-lg"
+              onClick={() => setPreviewImage(null)}
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img src={previewImage} alt="POD Proof" className="max-w-full max-h-[80vh] object-contain rounded-lg" />
+          </div>
+        </div>
+      )}
 
       {/* ── PRINT STYLES ── */}
       <style>{`

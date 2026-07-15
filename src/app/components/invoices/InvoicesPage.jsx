@@ -55,8 +55,38 @@ export function InvoicesPage() {
     location: "",
     invoiceNumber: "",
     invoiceDate: "",
+    quantity: "",
+    weight: "",
+    tyre: "",
+    tube: "",
+    flap: "",
   });
+  const [editingInvoice, setEditingInvoice] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return "";
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return "";
+    return d.toISOString().split("T")[0];
+  };
+
+  const handleEditClick = (invoice) => {
+    setEditingInvoice(invoice);
+    setNewInvoiceData({
+      plantNumber: invoice.plantReferenceNumber || invoice.plantNumber || "",
+      customerName: invoice.customerName || "",
+      location: invoice.location || "",
+      invoiceNumber: invoice.invoiceNumber || "",
+      invoiceDate: formatDateForInput(invoice.invoiceDate),
+      quantity: invoice.quantity ?? "",
+      weight: invoice.weight ?? "",
+      tyre: invoice.tyre ?? "",
+      tube: invoice.tube ?? "",
+      flap: invoice.flap ?? "",
+    });
+    setAddModalOpen(true);
+  };
 
   const fetchInvoices = async (
     search = "",
@@ -214,8 +244,13 @@ export function InvoicesPage() {
     setSuccess("");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/invoices`, {
-        method: "POST",
+      const url = editingInvoice
+        ? `${API_BASE_URL}/invoices/${editingInvoice._id}`
+        : `${API_BASE_URL}/invoices`;
+      const method = editingInvoice ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(newInvoiceData),
@@ -224,10 +259,10 @@ export function InvoicesPage() {
       const result = await res.json();
 
       if (!res.ok) {
-        throw new Error(result.message || "Failed to add invoice");
+        throw new Error(result.message || `Failed to ${editingInvoice ? "update" : "add"} invoice`);
       }
 
-      setSuccess("✅ Invoice added successfully");
+      setSuccess(editingInvoice ? "✅ Invoice updated successfully" : "✅ Invoice added successfully");
       setAddModalOpen(false);
       setNewInvoiceData({
         plantNumber: "",
@@ -235,7 +270,13 @@ export function InvoicesPage() {
         location: "",
         invoiceNumber: "",
         invoiceDate: "",
+        quantity: "",
+        weight: "",
+        tyre: "",
+        tube: "",
+        flap: "",
       });
+      setEditingInvoice(null);
       fetchInvoices(searchQuery, statusFilter, currentPage);
 
       setTimeout(() => {
@@ -255,7 +296,22 @@ export function InvoicesPage() {
         uploading={uploading}
         onFileUpload={handleFileUpload}
         onHistoryClick={() => setHistoryOpen(true)}
-        onAddClick={() => setAddModalOpen(true)}
+        onAddClick={() => {
+          setEditingInvoice(null);
+          setNewInvoiceData({
+            plantNumber: "",
+            customerName: "",
+            location: "",
+            invoiceNumber: "",
+            invoiceDate: "",
+            quantity: "",
+            weight: "",
+            tyre: "",
+            tube: "",
+            flap: "",
+          });
+          setAddModalOpen(true);
+        }}
         canCreate={canCreate}
       />
 
@@ -393,6 +449,7 @@ export function InvoicesPage() {
         onPageChange={setCurrentPage}
         onDeleted={handleDeleted}
         onStatusUpdated={handleStatusUpdated}
+        onEditClick={handleEditClick}
         canEdit={canEdit}
         canDelete={canDelete}
       />
@@ -402,18 +459,20 @@ export function InvoicesPage() {
         onOpenChange={setHistoryOpen}
       />
 
-      {/* Manual Add Invoice Modal */}
+      {/* Manual Add/Edit Invoice Modal */}
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
         <DialogContent className="sm:max-w-md bg-white border border-border shadow-lg rounded-xl p-6">
           <DialogHeader className="border-b border-border pb-3 mb-4">
-            <DialogTitle className="text-lg font-bold text-foreground">Add New Invoice</DialogTitle>
+            <DialogTitle className="text-lg font-bold text-foreground">
+              {editingInvoice ? "Edit Invoice Details" : "Add New Invoice"}
+            </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Manually record a new customer invoice record.
+              {editingInvoice ? "Modify the invoice record details below." : "Manually record a new customer invoice record."}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleAddInvoice} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-4 max-h-[60vh] overflow-y-auto pr-1">
               <div className="space-y-1.5">
                 <Label htmlFor="plantNumber" className="text-xs font-semibold text-slate-700">Plant No. *</Label>
                 <Input
@@ -472,6 +531,67 @@ export function InvoicesPage() {
                   className="h-9 bg-slate-50 border-border text-sm"
                 />
               </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="tyre" className="text-xs font-semibold text-slate-700">Tyres</Label>
+                <Input
+                  id="tyre"
+                  type="number"
+                  placeholder="0"
+                  value={newInvoiceData.tyre}
+                  onChange={(e) => setNewInvoiceData(prev => ({ ...prev, tyre: e.target.value }))}
+                  className="h-9 bg-slate-50 border-border text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="tube" className="text-xs font-semibold text-slate-700">Tubes</Label>
+                <Input
+                  id="tube"
+                  type="number"
+                  placeholder="0"
+                  value={newInvoiceData.tube}
+                  onChange={(e) => setNewInvoiceData(prev => ({ ...prev, tube: e.target.value }))}
+                  className="h-9 bg-slate-50 border-border text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="flap" className="text-xs font-semibold text-slate-700">Flaps</Label>
+                <Input
+                  id="flap"
+                  type="number"
+                  placeholder="0"
+                  value={newInvoiceData.flap}
+                  onChange={(e) => setNewInvoiceData(prev => ({ ...prev, flap: e.target.value }))}
+                  className="h-9 bg-slate-50 border-border text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="quantity" className="text-xs font-semibold text-slate-700">Qty</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  placeholder="e.g. 50"
+                  value={newInvoiceData.quantity}
+                  onChange={(e) => setNewInvoiceData(prev => ({ ...prev, quantity: e.target.value }))}
+                  className="h-9 bg-slate-50 border-border text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="weight" className="text-xs font-semibold text-slate-700">Weight (kg)</Label>
+                <Input
+                  id="weight"
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g. 1500"
+                  value={newInvoiceData.weight}
+                  onChange={(e) => setNewInvoiceData(prev => ({ ...prev, weight: e.target.value }))}
+                  className="h-9 bg-slate-50 border-border text-sm"
+                />
+              </div>
             </div>
 
             <DialogFooter className="pt-4 border-t border-border mt-4 flex justify-end gap-2">
@@ -488,7 +608,7 @@ export function InvoicesPage() {
                 disabled={submitting}
                 className="h-9 text-xs bg-[#1d4ed8] hover:bg-[#1e40af] text-white font-medium"
               >
-                {submitting ? "Adding..." : "Add Invoice"}
+                {submitting ? (editingInvoice ? "Saving..." : "Adding...") : (editingInvoice ? "Save Changes" : "Add Invoice")}
               </Button>
             </DialogFooter>
           </form>

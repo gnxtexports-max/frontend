@@ -4,9 +4,10 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from "../ui/sheet";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Calendar, User, Car, Download, X, Search, CheckSquare, Square, Trash2, Eye } from "lucide-react";
+import { Calendar, User, Car, Download, X, Search, CheckSquare, Square, Trash2, Eye, FileCheck } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { useAuth } from "../../context/AuthContext";
+import { getPODConfig } from "./utils/shipmentStyles";
 
 export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = [], setSelectedShipment, setViewSheetOpen, onDeleted }) {
   const { user } = useAuth();
@@ -233,6 +234,7 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
                   <TableHead className="w-[150px]">Vehicle & Driver</TableHead>
                   <TableHead className="w-[110px]">Items / Wt</TableHead>
                   <TableHead className="w-[110px]">Delivery Date</TableHead>
+                  <TableHead className="w-[110px]">POD Status</TableHead>
                   <TableHead className="w-[90px]">Status</TableHead>
                   <TableHead className="w-[80px] pr-4 text-right">View</TableHead>
                 </TableRow>
@@ -244,6 +246,7 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
                   const isSelected = selectedIds.includes(s._id);
                   const plantNumbers = (dest.plantReferenceNumber || "").split(",").map(p => p.trim()).filter(Boolean);
 
+                  const podConfig = getPODConfig(s);
                   return (
                     <TableRow key={s._id} className={`hover:bg-muted/10 transition-colors ${isSelected ? "bg-blue-50/20" : ""}`}>
                       {/* Checkbox */}
@@ -321,6 +324,16 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
                           : (s.createdAt ? new Date(s.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—")}
                       </TableCell>
 
+                      {/* POD Status */}
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border ${podConfig.className}`}
+                        >
+                          {podConfig.icon && <FileCheck className="w-3 h-3" />}
+                          {podConfig.label}
+                        </span>
+                      </TableCell>
+
                       {/* Status */}
                       <TableCell>
                         <Badge
@@ -355,7 +368,7 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
 
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-48 text-center text-muted-foreground bg-slate-50/10">
+                    <TableCell colSpan={11} className="h-48 text-center text-muted-foreground bg-slate-50/10">
                       <div className="flex flex-col items-center justify-center gap-2 py-8">
                         <Search className="w-8 h-8 text-slate-300" />
                         <p className="text-sm font-semibold">No delivered shipments match your filters</p>

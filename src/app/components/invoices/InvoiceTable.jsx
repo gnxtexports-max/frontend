@@ -19,6 +19,7 @@ export function InvoiceTable({
   onPageChange,
   onDeleted,
   onStatusUpdated,
+  onEditClick,
   canEdit,
   canDelete,
 }) {
@@ -40,16 +41,20 @@ export function InvoiceTable({
               <TableHead>Location</TableHead>
               <TableHead>Invoice</TableHead>
               <TableHead>Invoice Date</TableHead>
+              <TableHead>Tyres</TableHead>
+              <TableHead>Tubes</TableHead>
+              <TableHead>Flaps</TableHead>
+              <TableHead>Qty</TableHead>
+              <TableHead>Weight</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Action</TableHead>
             </TableRow>
           </TableHeader>
-
           <TableBody>
             {invoices.length === 0 && !loading ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={13}
                   className="h-[300px] text-center"
                 >
                   No invoices found
@@ -62,6 +67,7 @@ export function InvoiceTable({
                   plant={plant}
                   onDeleted={onDeleted}
                   onStatusUpdated={onStatusUpdated}
+                  onEditClick={onEditClick}
                   canEdit={canEdit}
                   canDelete={canDelete}
                 />

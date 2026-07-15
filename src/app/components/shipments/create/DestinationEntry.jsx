@@ -1,13 +1,21 @@
 import { useEffect, useState, useRef } from "react";
-import { Building2, Package, Hash, Weight, Layers, FileText, Trash2 } from "lucide-react";
+import { Building2, Package, Hash, Weight, Layers, FileText, Trash2, Users } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { Badge } from "../../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../../ui/tooltip";
 import { format } from "date-fns";
 
 const API_BASE_URL = import.meta.env?.VITE_API_URL || "http://localhost:5000/api";
+
+const arraysEqual = (a, b) => {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((val, index) => val === sortedB[index]);
+};
 
 export function DestinationEntry({
   entry,
@@ -28,7 +36,9 @@ export function DestinationEntry({
   const [relatedPlants, setRelatedPlants] = useState([]);
   const [loadingPlants, setLoadingPlants]   = useState(false);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
-  const prevPlantsRef = useRef([]);
+  const prevPlantsRef = useRef(
+    [entry.plantReferenceNumber, ...(entry.additionalPlants || [])].filter(Boolean)
+  );
 
   // Fetch plant numbers on mount
   useEffect(() => {
@@ -40,12 +50,18 @@ export function DestinationEntry({
       .finally(() => setLoadingPlants(false));
   }, []);
 
+
+
   // Fetch invoices when plant or additional plants change — also auto-fill customerName + location
   useEffect(() => {
     const currentPlants = [entry.plantReferenceNumber, ...(entry.additionalPlants || [])].filter(Boolean);
     if (currentPlants.length === 0) {
       setInvoices([]);
       prevPlantsRef.current = [];
+      onUpdate(entry.id, "weightKg", "");
+      onUpdate(entry.id, "totalTyres", 0);
+      onUpdate(entry.id, "totalTubes", 0);
+      onUpdate(entry.id, "totalFlaps", 0);
       return;
     }
 
@@ -69,17 +85,47 @@ export function DestinationEntry({
           return dB - dA;
         });
 
+        // Combine with initialInvoices for weight calculation
+        const combinedInvoicesMap = new Map();
+        [...(initialInvoices || []), ...combined].forEach((inv) => {
+          if (inv && inv._id) {
+            combinedInvoicesMap.set(inv._id.toString(), inv);
+          }
+        });
+        const activeInvoices = Array.from(combinedInvoicesMap.values()).filter(
+          (inv) =>
+            inv.plantReferenceNumber && currentPlants.includes(inv.plantReferenceNumber.toString())
+        );
+
         setInvoices(combined);
 
+        // Check if plant selection actually changed
+        const plantsChanged = !arraysEqual(currentPlants, prevPlantsRef.current);
+        prevPlantsRef.current = currentPlants;
+
         // Auto-fill customerName and deliveryLocation from first invoice
-        if (combined.length > 0) {
-          const first = combined[0];
+        if (activeInvoices.length > 0) {
+          const first = activeInvoices[0];
           if (!entry.customerName && first.customerName) {
             onUpdate(entry.id, "customerName", first.customerName);
           }
           if (!entry.deliveryLocation && first.location) {
             onUpdate(entry.id, "deliveryLocation", first.location);
           }
+        }
+
+        if (plantsChanged) {
+          const totalWeight = activeInvoices.reduce((sum, inv) => sum + (Number(inv.weight) || 0), 0);
+          onUpdate(entry.id, "weightKg", totalWeight ? totalWeight.toFixed(1) : "");
+
+          const totalTyres = activeInvoices.reduce((sum, inv) => sum + (Number(inv.tyre) || 0), 0);
+          onUpdate(entry.id, "totalTyres", totalTyres || 0);
+
+          const totalTubes = activeInvoices.reduce((sum, inv) => sum + (Number(inv.tube) || 0), 0);
+          onUpdate(entry.id, "totalTubes", totalTubes || 0);
+
+          const totalFlaps = activeInvoices.reduce((sum, inv) => sum + (Number(inv.flap) || 0), 0);
+          onUpdate(entry.id, "totalFlaps", totalFlaps || 0);
         }
       })
       .catch(() => setInvoices([]))
@@ -107,9 +153,9 @@ export function DestinationEntry({
 
     const combinedInvoices = Array.from(combinedInvoicesMap.values());
 
-    // Filter to only keep invoices belonging to active plants
     const activeInvoices = combinedInvoices.filter(
-      (inv) => inv.plantReferenceNumber && currentPlants.includes(inv.plantReferenceNumber.toString())
+      (inv) =>
+        inv.plantReferenceNumber && currentPlants.includes(inv.plantReferenceNumber.toString())
     );
 
     const activeIds = activeInvoices.map((inv) => inv._id.toString());
@@ -164,24 +210,28 @@ export function DestinationEntry({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Plant + Invoices */}
         <div className="space-y-4">
-          {/* Plant Number */}
+          {/* Customer Name Select */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Building2 className="w-3 h-3" /> Plant Number
+              <Users className="w-3.5 h-3.5" /> Customer Name *
             </Label>
             <Select
               value={entry.plantReferenceNumber || ""}
               onValueChange={(val) => {
+                const pObj = plantNumbers.find(p => p.plantNumber === val);
                 onUpdate(entry.id, "plantReferenceNumber", val);
+                onUpdate(entry.id, "customerName", pObj ? pObj.customerName : "");
                 onUpdate(entry.id, "invoiceIds", []);
               }}
               disabled={loadingPlants}
             >
               <SelectTrigger className="w-full bg-white border-border h-11">
-                <SelectValue placeholder={loadingPlants ? "Loading..." : "Select plant..."} />
+                <SelectValue placeholder={loadingPlants ? "Loading..." : "Select customer..."} />
               </SelectTrigger>
-              <SelectContent>
-                {plantNumbers.filter(Boolean).map((plant) => {
+              <SelectContent className="max-h-[300px] overflow-y-auto">
+                {plantNumbers.map((pObj) => {
+                  const plant = pObj.plantNumber;
+                  const customer = pObj.customerName;
                   const isUsed = usedPlantNumbers.includes(plant);
                   return (
                     <SelectItem
@@ -191,7 +241,7 @@ export function DestinationEntry({
                       className={isUsed ? "opacity-40 cursor-not-allowed" : ""}
                     >
                       <span className="flex items-center justify-between w-full gap-3">
-                        {plant}
+                        <span>{customer} - <span className="text-slate-400 font-normal text-xs">{plant}</span></span>
                         {isUsed && (
                           <span className="text-[10px] text-muted-foreground ml-2">Already selected</span>
                         )}
@@ -297,8 +347,19 @@ export function DestinationEntry({
                               <Building2 className="w-3.5 h-3.5 text-[#1d4ed8]" /> Plant: {plant}
                             </span>
                             <Badge className="bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0] text-[9px] font-medium px-2 py-0.5 rounded-full">
-                              Included
+                              {plant === entry.plantReferenceNumber ? "Primary" : "Included"}
                             </Badge>
+                            {/* Remove button — only for additional (non-primary) plants */}
+                            {plant !== entry.plantReferenceNumber && (
+                              <button
+                                type="button"
+                                title="Remove this plant"
+                                onClick={() => onRemoveRelatedPlant?.(plant)}
+                                className="ml-auto text-[10px] font-bold text-red-400 hover:text-red-600 hover:bg-red-50 border border-red-200 rounded px-1.5 py-0.5 transition-colors leading-none flex items-center gap-0.5"
+                              >
+                                ✕ Remove
+                              </button>
+                            )}
                           </div>
                           {customerName && (
                             <p className="text-xs text-slate-700 font-medium">{customerName}</p>
@@ -386,15 +447,34 @@ export function DestinationEntry({
             <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Weight className="w-3 h-3" /> Weight (kg)
             </Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.5"
-              value={entry.weightKg || ""}
-              onChange={(e) => onUpdate(entry.id, "weightKg", e.target.value)}
-              placeholder="Enter weight in kg"
-              className="bg-white border-border h-11"
-            />
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.5"
+                      value={entry.weightKg || ""}
+                      onChange={(e) => onUpdate(entry.id, "weightKg", e.target.value)}
+                      placeholder="Enter weight in kg"
+                      className="bg-white border-border h-11"
+                    />
+                    
+                    {/* Combined values display alongside weight */}
+                    <div className="p-2.5 rounded-lg border border-indigo-100 bg-indigo-50/40 text-indigo-700 text-xs font-semibold flex flex-wrap gap-x-3 gap-y-1">
+                      <span>🚗 Tyres: {entry.totalTyres || 0}</span>
+                      <span>🍩 Tubes: {entry.totalTubes || 0}</span>
+                      <span>🎗️ Flaps: {entry.totalFlaps || 0}</span>
+                      <span className="ml-auto text-[#1d4ed8]">Total items: {(entry.totalTyres || 0) + (entry.totalTubes || 0) + (entry.totalFlaps || 0)}</span>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="center" className="bg-[#1e293b] text-white p-2.5 text-xs rounded-md shadow-lg border border-slate-700">
+                  Total selected plant quantity: {invoices.reduce((sum, inv) => sum + (inv.quantity || 0), 0)} pcs
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </div>

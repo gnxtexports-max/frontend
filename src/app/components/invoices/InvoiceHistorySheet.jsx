@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "../ui/sheet";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Download, X, Search, Loader2 } from "lucide-react";
+import { Download, X, Search, Loader2, ChevronDown, ChevronRight, CornerUpLeft } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import { useAuth } from "../../context/AuthContext";
 
@@ -18,6 +18,39 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+
+  const [expandedRows, setExpandedRows] = useState({});
+
+  const toggleRow = (id) => {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const handleReturnInvoice = async (invoiceId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/invoices/${invoiceId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ status: "Returned - Awaiting" }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent("api-cache-updated"));
+        return true;
+      } else {
+        alert(result.message || "Failed to return invoice");
+        return false;
+      }
+    } catch (err) {
+      console.error("Error returning invoice:", err);
+      return false;
+    }
+  };
 
   const fetchHistory = async (search = "", page = 1) => {
     setLoading(true);
@@ -97,48 +130,130 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
             <Table>
               <TableHeader className="bg-slate-50/50 sticky top-0 z-10">
                 <TableRow>
+                  <TableHead className="w-8 pl-4" />
                   <TableHead>Plant No.</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Invoices Count</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Delivered/Cancelled At</TableHead>
+                  <TableHead className="text-right pr-4">Return</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invoices.length === 0 && !loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-48 text-center text-muted-foreground">
                       No historical invoices found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  invoices.map((plant) => (
-                    <TableRow key={plant._id} className="hover:bg-muted/10 transition-colors">
-                      <TableCell className="font-semibold text-[#1d4ed8] text-xs">
-                        {plant.plantNumber}
-                      </TableCell>
-                      <TableCell className="text-xs font-bold text-slate-800">
-                        {plant.customerName || "—"}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {plant.location || "—"}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                          {plant.invoices?.length || 0} Invoices
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={plant.status} />
-                      </TableCell>
-                      <TableCell className="text-[11px] text-slate-500 font-medium">
-                        {plant.status === "Cancelled"
-                          ? (plant.cancelledAt ? new Date(plant.cancelledAt).toLocaleString("en-IN") : "—")
-                          : (plant.deliveredAt ? new Date(plant.deliveredAt).toLocaleString("en-IN") : "—")}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  invoices.map((plant) => {
+                    const isExpanded = !!expandedRows[plant._id];
+                    const hasInvoices = plant.invoices && plant.invoices.length > 0;
+
+                    return (
+                      <React.Fragment key={plant._id}>
+                        <TableRow 
+                          className="hover:bg-muted/10 transition-colors cursor-pointer"
+                          onClick={() => hasInvoices && toggleRow(plant._id)}
+                        >
+                          <TableCell className="pl-4 w-8">
+                            {hasInvoices ? (
+                              isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              )
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="font-semibold text-[#1d4ed8] text-xs">
+                            {plant.plantNumber}
+                          </TableCell>
+                          <TableCell className="text-xs font-bold text-slate-800">
+                            {plant.customerName || "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {plant.location || "—"}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                              {plant.invoices?.length || 0} Invoices
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={plant.status} />
+                          </TableCell>
+                          <TableCell className="text-[11px] text-slate-500 font-medium">
+                            {plant.status === "Cancelled"
+                              ? (plant.cancelledAt ? new Date(plant.cancelledAt).toLocaleString("en-IN") : "—")
+                              : (plant.deliveredAt ? new Date(plant.deliveredAt).toLocaleString("en-IN") : "—")}
+                          </TableCell>
+                          <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[10px] font-semibold bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-2 rounded-md inline-flex items-center gap-1"
+                              onClick={async () => {
+                                const confirmReturn = window.confirm(`Are you sure you want to return all ${plant.invoices?.length || 0} invoices for Plant ${plant.plantNumber}?`);
+                                if (!confirmReturn) return;
+                                let anySuccess = false;
+                                for (const inv of plant.invoices || []) {
+                                  const ok = await handleReturnInvoice(inv._id);
+                                  if (ok) anySuccess = true;
+                                }
+                                if (anySuccess) {
+                                  fetchHistory(searchQuery, currentPage);
+                                }
+                              }}
+                            >
+                              <CornerUpLeft className="w-3 h-3" />
+                              Return All
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+
+                        {isExpanded && hasInvoices && (
+                          plant.invoices.map((inv) => (
+                            <TableRow key={inv._id} className="bg-slate-50/40 hover:bg-slate-50/70 border-l-2 border-indigo-500">
+                              <TableCell className="pl-4 w-8" />
+                              <TableCell className="text-[10px] text-slate-400 font-mono">Invoice Item</TableCell>
+                              <TableCell className="text-xs text-[#1d4ed8] font-semibold">{inv.invoiceNumber}</TableCell>
+                              <TableCell className="text-[10px] text-slate-400">Date: {inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString("en-IN") : "—"}</TableCell>
+                              <TableCell className="text-xs text-slate-600 font-medium">Qty: {inv.quantity || 0} | Wt: {inv.weight || 0} kg</TableCell>
+                              <TableCell>
+                                <StatusBadge status={inv.status} />
+                              </TableCell>
+                              <TableCell className="text-[11px] text-slate-500 font-medium">
+                                {inv.status === "Cancelled"
+                                  ? (inv.cancelledAt ? new Date(inv.cancelledAt).toLocaleString("en-IN") : "—")
+                                  : (inv.deliveredAt ? new Date(inv.deliveredAt).toLocaleString("en-IN") : "—")}
+                              </TableCell>
+                              <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[10px] font-semibold bg-white border-slate-200 text-slate-700 hover:bg-slate-50 px-2 rounded-md inline-flex items-center gap-1 shadow-sm"
+                                  onClick={async () => {
+                                    const confirmReturn = window.confirm(`Are you sure you want to return Invoice ${inv.invoiceNumber} to the active list?`);
+                                    if (confirmReturn) {
+                                      const ok = await handleReturnInvoice(inv._id);
+                                      if (ok) {
+                                        fetchHistory(searchQuery, currentPage);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <CornerUpLeft className="w-3 h-3" />
+                                  Return
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

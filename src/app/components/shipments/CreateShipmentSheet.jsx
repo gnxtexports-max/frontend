@@ -26,6 +26,7 @@ const emptyEntry = () => ({
   totalTubes: 0,
   totalFlaps: 0,
   weightKg: "",
+  customerName: "",
 });
 
 function saveDraft(dealerEntries, vehicleId, driverId) {
@@ -93,6 +94,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
           totalTubes: dest.totalTubes || 0,
           totalFlaps: dest.totalFlaps || 0,
           weightKg: dest.weightKg || "",
+          customerName: dest.customerName || "",
         };
       });
       setDealerEntries(entries.length ? entries : [emptyEntry()]);
@@ -199,7 +201,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
       const vehicleCapacity = selectedVehicle.capacityKg || selectedVehicle.capacity || 0;
       if (vehicleCapacity > 0 && totalWeight > vehicleCapacity) {
         const proceed = window.confirm(
-          `Warning: Total weight of the shipment (${totalWeight} kg) exceeds the vehicle capacity (${vehicleCapacity} kg).\n\nDo you want to proceed?`
+          `Warning: Total weight of the shipment (${totalWeight.toFixed(1)} kg) exceeds the vehicle capacity (${vehicleCapacity} kg).\n\nDo you want to proceed?`
         );
         if (!proceed) return;
       }
