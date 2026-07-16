@@ -330,7 +330,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
                   onUpdate={updateEntry}
                   lrNumber={
                     createdShipment?.destinations?.[index]?.lrNumber
-                    ?? (nextIds ? `${nextIds.lrPrefix}-${String(index + 1).padStart(2, "0")}` : null)
+                    ?? (nextIds?.nextLrSeq ? `${nextIds.lrPrefix}${String(nextIds.nextLrSeq + index).padStart(5, "0")}` : null)
                   }
                   usedPlantNumbers={
                     dealerEntries

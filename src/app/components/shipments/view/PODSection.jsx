@@ -221,6 +221,10 @@ function DestinationPODCard({
               <div class="lr-sig-label">RECEIVED BY CLIENT WITH SIGNATURE AND SEAL</div>
               <div class="lr-sig-dotted-line"></div>
             </div>
+            <div class="lr-sig-box">
+              <div class="lr-sig-label">REMARKS</div>
+              <div class="lr-sig-dotted-line"></div>
+            </div>
           </div>
         </div>
       `;
@@ -425,14 +429,14 @@ function DestinationPODCard({
 
           .lr-signatures {
             display: flex;
-            border-top: 1.5px solid #000;
+            border-top: 1px solid #000;
             height: var(--sig-height);
             box-sizing: border-box;
           }
 
           .lr-sig-box {
-            width: 33.33%;
-            border-right: 1.5px solid #000;
+            width: 25%;
+            border-right: 1px solid #000;
             padding: 4px 8px;
             font-size: var(--font-sig);
             font-weight: 700;
