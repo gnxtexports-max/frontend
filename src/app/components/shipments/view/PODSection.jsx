@@ -287,7 +287,7 @@ function DestinationPODCard({
             --font-fromto: 11px;
             --padding-table-tb: 4px;
             --font-table: 10.5px;
-            --sig-height: 24mm;
+            --sig-height: 28mm;
             --font-sig: 9px;
           }
 
@@ -298,7 +298,7 @@ function DestinationPODCard({
             --font-fromto: 9.5px;
             --padding-table-tb: 1px;
             --font-table: 9px;
-            --sig-height: 16mm;
+            --sig-height: 20mm;
             --font-sig: 7.5px;
           }
 
@@ -376,8 +376,8 @@ function DestinationPODCard({
           }
 
           .lr-table th, .lr-table td {
-            border: 1.5px solid #000;
-            padding: var(--padding-table-tb) 8px;
+            border: 1px solid #000;
+            padding: calc(var(--padding-table-tb) + 2px) 8px;
             font-size: var(--font-table);
             text-align: center;
             line-height: 1.2;
@@ -400,6 +400,11 @@ function DestinationPODCard({
             font-weight: 700;
           }
 
+          .lr-table thead tr:not(:first-child) th {
+            font-weight: 800;
+            font-size: calc(var(--font-table) + 1.5px);
+          }
+
           .lr-table th.table-title {
             background-color: #e5e7eb;
             font-weight: 800;
@@ -414,6 +419,8 @@ function DestinationPODCard({
             font-weight: 700;
             background-color: #f3f4f6;
             border-bottom: none;
+            padding-top: calc(var(--padding-table-tb) - 1px);
+            padding-bottom: calc(var(--padding-table-tb) - 1px);
           }
 
           .lr-signatures {
@@ -452,7 +459,7 @@ function DestinationPODCard({
           }
 
           .lr-sig-dotted-line {
-            border-bottom: 1.5px dotted #000;
+            border-bottom: 2.5px dotted #000;
             width: 90%;
             margin: 0 auto;
             height: 0;
