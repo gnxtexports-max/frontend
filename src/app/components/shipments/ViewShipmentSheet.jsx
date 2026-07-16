@@ -74,7 +74,7 @@ function buildDetail(s, liveGps) {
     const rows = [];
     if (dest.totalTyres > 0) rows.push({ model: dest.customerName || dest.plantReferenceNumber, type: "Tyre", quantity: dest.totalTyres, unitWeight: 0, totalWeight: 0 });
     if (dest.totalTubes > 0) rows.push({ model: dest.customerName || dest.plantReferenceNumber, type: "Tube", quantity: dest.totalTubes, unitWeight: 0, totalWeight: 0 });
-    if (dest.totalFlaps > 0) rows.push({ model: dest.customerName || dest.plantReferenceNumber, type: "Flap", quantity: dest.totalFlaps, unitWeight: 0, totalWeight: 0 });
+    if (dest.totalGlaps > 0) rows.push({ model: dest.customerName || dest.plantReferenceNumber, type: "Glap", quantity: dest.totalGlaps, unitWeight: 0, totalWeight: 0 });
     return rows;
   });
 

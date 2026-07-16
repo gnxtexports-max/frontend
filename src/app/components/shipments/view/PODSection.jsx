@@ -96,8 +96,8 @@ function DestinationPODCard({
     const toAddress = `${dest.customerName || "—"}, ${dest.deliveryLocation || "—"}`;
     const invoices = (dest.invoiceIds || []).filter(inv => typeof inv === "object" && inv !== null);
 
-    // Chunk invoices into pages of maximum 16 entries
-    const invoicesPerPage = 16;
+    // Chunk invoices into pages of maximum 12 entries
+    const invoicesPerPage = 12;
     const pages = [];
     for (let i = 0; i < invoices.length; i += invoicesPerPage) {
       pages.push(invoices.slice(i, i + invoicesPerPage));
@@ -109,20 +109,20 @@ function DestinationPODCard({
     const renderPage = (pageInvoices, pageIndex, totalPages) => {
       let totalQty = 0;
       let totalWeight = 0;
-      let totalFlap = 0;
+      let totalGlap = 0;
       let totalTube = 0;
       let totalTyre = 0;
 
       const rows = pageInvoices.map(inv => {
         const invQty = Number(inv.quantity) || 0;
         const invWt = Number(inv.weight) || 0;
-        const invFlap = Number(inv.flap) || 0;
+        const invGlap = Number(inv.glap) || 0;
         const invTube = Number(inv.tube) || 0;
         const invTyre = Number(inv.tyre) || 0;
 
         totalQty += invQty;
         totalWeight += invWt;
-        totalFlap += invFlap;
+        totalGlap += invGlap;
         totalTube += invTube;
         totalTyre += invTyre;
 
@@ -137,7 +137,7 @@ function DestinationPODCard({
           date: formattedDate,
           qty: invQty,
           weight: invWt.toFixed(2),
-          flap: invFlap,
+          glap: invGlap,
           tube: invTube,
           tyre: invTyre
         };
@@ -181,9 +181,9 @@ function DestinationPODCard({
                   <th>INVOICE NO</th>
                   <th>INVOICE DATE</th>
                   <th>WEIGHT (KG)</th>
-                  <th>FLAP</th>
-                  <th>TUBE</th>
                   <th>TYRE</th>
+                  <th>TUBE</th>
+                  <th>GLAP</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,17 +192,17 @@ function DestinationPODCard({
                     <td>${r.no}</td>
                     <td>${r.date}</td>
                     <td>${r.weight}</td>
-                    <td>${r.flap}</td>
-                    <td>${r.tube}</td>
                     <td>${r.tyre}</td>
+                    <td>${r.tube}</td>
+                    <td>${r.glap}</td>
                   </tr>
                 `).join("")}
                 <tr class="total-row">
                   <td colspan="2">TOTAL</td>
                   <td>${totalWeight.toFixed(2)} kg</td>
-                  <td>${totalFlap}</td>
-                  <td>${totalTube}</td>
                   <td>${totalTyre}</td>
+                  <td>${totalTube}</td>
+                  <td>${totalGlap}</td>
                 </tr>
               </tbody>
             </table>
@@ -287,7 +287,7 @@ function DestinationPODCard({
             --font-fromto: 11px;
             --padding-table-tb: 4px;
             --font-table: 10.5px;
-            --sig-height: 16mm;
+            --sig-height: 24mm;
             --font-sig: 9px;
           }
 
@@ -298,7 +298,7 @@ function DestinationPODCard({
             --font-fromto: 9.5px;
             --padding-table-tb: 1px;
             --font-table: 9px;
-            --sig-height: 10mm;
+            --sig-height: 16mm;
             --font-sig: 7.5px;
           }
 
@@ -563,7 +563,7 @@ function DestinationPODCard({
 
           <div className="grid grid-cols-2 gap-4 bg-[#fafbfc] border border-border p-3.5 rounded-xl">
             <DetailField label="Weight" value={`${dest.weightKg} kg`} />
-            <DetailField label="Quantity" value={`${dest.totalQuantity || (dest.totalTyres || 0) + (dest.totalTubes || 0) + (dest.totalFlaps || 0)} items`} />
+            <DetailField label="Quantity" value={`${dest.totalQuantity || (dest.totalTyres || 0) + (dest.totalTubes || 0) + (dest.totalGlaps || 0)} items`} />
           </div>
 
           <div>
@@ -576,8 +576,8 @@ function DestinationPODCard({
               </div>
               <div className="flex items-center gap-1.5">
                 <Disc className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-xs text-muted-foreground">Flaps:</span>
-                <span className="text-xs font-semibold text-foreground">{dest.totalFlaps || 0}</span>
+                <span className="text-xs text-muted-foreground">Glaps:</span>
+                <span className="text-xs font-semibold text-foreground">{dest.totalGlaps || 0}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Circle className="w-3.5 h-3.5 text-violet-600" />

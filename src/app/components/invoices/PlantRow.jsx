@@ -102,7 +102,7 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEd
 
         <TableCell>
           <span className="text-sm font-medium text-slate-700">
-            {first?.flap ?? 0}
+            {first?.glap ?? 0}
           </span>
         </TableCell>
 
@@ -189,7 +189,7 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEd
 
             <TableCell>
               <span className="text-sm text-slate-600">
-                {inv.flap ?? 0}
+                {inv.glap ?? 0}
               </span>
             </TableCell>
 
