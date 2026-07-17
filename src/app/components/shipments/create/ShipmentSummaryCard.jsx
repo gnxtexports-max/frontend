@@ -4,7 +4,7 @@ import { SummaryMetric } from "../ui/ShipmentUIComponents";
 export function ShipmentSummaryCard({
   totalTyresAll,
   totalTubesAll,
-  totalGlapsAll,
+  totalFlapsAll,
   totalQuantity,
   totalWeight,
   selectedVehicle,
@@ -17,7 +17,7 @@ export function ShipmentSummaryCard({
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <SummaryMetric icon={<Hash className="w-4 h-4 text-[#1d4ed8]" />}   label="Total Tyres"    value={`${totalTyresAll}`} />
         <SummaryMetric icon={<Hash className="w-4 h-4 text-[#6366f1]" />}   label="Total Tubes"    value={`${totalTubesAll}`} />
-        <SummaryMetric icon={<Hash className="w-4 h-4 text-[#8b5cf6]" />}   label="Total Glaps"    value={`${totalGlapsAll}`} />
+        <SummaryMetric icon={<Hash className="w-4 h-4 text-[#8b5cf6]" />}   label="Total Flaps"    value={`${totalFlapsAll}`} />
         <SummaryMetric icon={<Layers className="w-4 h-4 text-[#1d4ed8]" />} label="Total Quantity" value={`${totalQuantity}`} />
         <SummaryMetric icon={<Weight className="w-4 h-4 text-[#1d4ed8]" />} label="Total Weight"   value={`${(totalWeight || 0).toFixed(1)} kg`} />
       </div>

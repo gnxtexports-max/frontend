@@ -24,7 +24,7 @@ const emptyEntry = () => ({
   invoiceIds: [],
   totalTyres: 0,
   totalTubes: 0,
-  totalGlaps: 0,
+  totalFlaps: 0,
   weightKg: "",
   customerName: "",
 });
@@ -92,7 +92,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
           deliveryLocation: dest.deliveryLocation || "",
           totalTyres: dest.totalTyres || 0,
           totalTubes: dest.totalTubes || 0,
-          totalGlaps: dest.totalGlaps || 0,
+          totalFlaps: dest.totalFlaps || 0,
           weightKg: dest.weightKg || "",
           customerName: dest.customerName || "",
         };
@@ -118,8 +118,8 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
 
   const totalTyresAll = dealerEntries.reduce((s, e) => s + (e.totalTyres || 0), 0);
   const totalTubesAll = dealerEntries.reduce((s, e) => s + (e.totalTubes || 0), 0);
-  const totalGlapsAll = dealerEntries.reduce((s, e) => s + (e.totalGlaps || 0), 0);
-  const totalQuantity = totalTyresAll + totalTubesAll + totalGlapsAll;
+  const totalFlapsAll = dealerEntries.reduce((s, e) => s + (e.totalFlaps || 0), 0);
+  const totalQuantity = totalTyresAll + totalTubesAll + totalFlapsAll;
   const totalWeight = dealerEntries.reduce((s, e) => s + (parseFloat(e.weightKg) || 0), 0);
 
   const addEntry = () => setDealerEntries((p) => [...p, emptyEntry()]);
@@ -216,7 +216,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
           deliveryLocation: e.deliveryLocation || "",
           totalTyres: e.totalTyres || 0,
           totalTubes: e.totalTubes || 0,
-          totalGlaps: e.totalGlaps || 0,
+          totalFlaps: e.totalFlaps || 0,
           weightKg: parseFloat(e.weightKg) || 0,
         })),
         vehicleId,
@@ -377,7 +377,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
               <ShipmentSummaryCard
                 totalTyresAll={totalTyresAll}
                 totalTubesAll={totalTubesAll}
-                totalGlapsAll={totalGlapsAll}
+                totalFlapsAll={totalFlapsAll}
                 totalQuantity={totalQuantity}
                 totalWeight={totalWeight}
                 selectedVehicle={vehicles.find((v) => v._id === vehicleId)}

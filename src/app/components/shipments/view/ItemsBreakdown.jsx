@@ -9,8 +9,8 @@ export function ItemsBreakdown({ shipment, detail, totalQty, totalWt }) {
   // Aggregate counts across all destinations
   const tyreCount = destinations.reduce((s, d) => s + (d.totalTyres || 0), 0)
     || detail.items.filter((i) => i.type === "Tyre").reduce((s, i) => s + i.quantity, 0);
-  const glapCount = destinations.reduce((s, d) => s + (d.totalGlaps || 0), 0)
-    || detail.items.filter((i) => i.type === "Glap").reduce((s, i) => s + i.quantity, 0);
+  const flapCount = destinations.reduce((s, d) => s + (d.totalFlaps || 0), 0)
+    || detail.items.filter((i) => i.type === "Flap").reduce((s, i) => s + i.quantity, 0);
   const tubeCount = destinations.reduce((s, d) => s + (d.totalTubes || 0), 0)
     || detail.items.filter((i) => i.type === "Tube").reduce((s, i) => s + i.quantity, 0);
 
@@ -27,7 +27,7 @@ export function ItemsBreakdown({ shipment, detail, totalQty, totalWt }) {
           <Separator />
           <div className="flex items-center gap-6">
             <SummaryPill icon={<CircleDot className="w-3.5 h-3.5 text-blue-600" />}  label="Total Tyres" value={`${tyreCount}`} />
-            <SummaryPill icon={<Disc className="w-3.5 h-3.5 text-amber-600" />}       label="Total Glaps" value={`${glapCount}`} />
+            <SummaryPill icon={<Disc className="w-3.5 h-3.5 text-amber-600" />}       label="Total Flaps" value={`${flapCount}`} />
             <SummaryPill icon={<Circle className="w-3.5 h-3.5 text-violet-600" />}    label="Total Tubes" value={`${tubeCount}`} />
           </div>
         </div>
@@ -54,7 +54,7 @@ export function ItemsBreakdown({ shipment, detail, totalQty, totalWt }) {
                     {[
                       dest.totalTyres > 0 && `${dest.totalTyres} Tyres`,
                       dest.totalTubes > 0 && `${dest.totalTubes} Tubes`,
-                      dest.totalGlaps > 0 && `${dest.totalGlaps} Glaps`,
+                      dest.totalFlaps > 0 && `${dest.totalFlaps} Flaps`,
                     ]
                       .filter(Boolean)
                       .join(", ") || "—"}

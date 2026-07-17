@@ -59,7 +59,7 @@ export function InvoicesPage() {
     weight: "",
     tyre: "",
     tube: "",
-    glap: "",
+    flap: "",
   });
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -83,7 +83,7 @@ export function InvoicesPage() {
       weight: invoice.weight ?? "",
       tyre: invoice.tyre ?? "",
       tube: invoice.tube ?? "",
-      glap: invoice.glap ?? "",
+      flap: invoice.flap ?? "",
     });
     setAddModalOpen(true);
   };
@@ -274,7 +274,7 @@ export function InvoicesPage() {
         weight: "",
         tyre: "",
         tube: "",
-        glap: "",
+        flap: "",
       });
       setEditingInvoice(null);
       fetchInvoices(searchQuery, statusFilter, currentPage);
@@ -308,7 +308,7 @@ export function InvoicesPage() {
             weight: "",
             tyre: "",
             tube: "",
-            glap: "",
+            flap: "",
           });
           setAddModalOpen(true);
         }}
@@ -557,13 +557,13 @@ export function InvoicesPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="glap" className="text-xs font-semibold text-slate-700">Glaps</Label>
+                <Label htmlFor="flap" className="text-xs font-semibold text-slate-700">Flaps</Label>
                 <Input
-                  id="glap"
+                  id="flap"
                   type="number"
                   placeholder="0"
-                  value={newInvoiceData.glap}
-                  onChange={(e) => setNewInvoiceData(prev => ({ ...prev, glap: e.target.value }))}
+                  value={newInvoiceData.flap}
+                  onChange={(e) => setNewInvoiceData(prev => ({ ...prev, flap: e.target.value }))}
                   className="h-9 bg-slate-50 border-border text-sm"
                 />
               </div>

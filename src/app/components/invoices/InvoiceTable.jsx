@@ -43,7 +43,7 @@ export function InvoiceTable({
               <TableHead>Invoice Date</TableHead>
               <TableHead>Tyres</TableHead>
               <TableHead>Tubes</TableHead>
-              <TableHead>Glaps</TableHead>
+              <TableHead>Flaps</TableHead>
               <TableHead>Qty</TableHead>
               <TableHead>Weight</TableHead>
               <TableHead>Status</TableHead>

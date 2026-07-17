@@ -61,7 +61,7 @@ export function DestinationEntry({
       onUpdate(entry.id, "weightKg", "");
       onUpdate(entry.id, "totalTyres", 0);
       onUpdate(entry.id, "totalTubes", 0);
-      onUpdate(entry.id, "totalGlaps", 0);
+      onUpdate(entry.id, "totalFlaps", 0);
       return;
     }
 
@@ -124,8 +124,8 @@ export function DestinationEntry({
           const totalTubes = activeInvoices.reduce((sum, inv) => sum + (Number(inv.tube) || 0), 0);
           onUpdate(entry.id, "totalTubes", totalTubes || 0);
 
-          const totalGlaps = activeInvoices.reduce((sum, inv) => sum + (Number(inv.glap) || 0), 0);
-          onUpdate(entry.id, "totalGlaps", totalGlaps || 0);
+          const totalFlaps = activeInvoices.reduce((sum, inv) => sum + (Number(inv.flap) || 0), 0);
+          onUpdate(entry.id, "totalFlaps", totalFlaps || 0);
         }
       })
       .catch(() => setInvoices([]))
@@ -414,7 +414,7 @@ export function DestinationEntry({
           {[
             { field: "totalTyres", label: "Total Tyres" },
             { field: "totalTubes", label: "Total Tubes" },
-            { field: "totalGlaps", label: "Total Glaps" },
+            { field: "totalFlaps", label: "Total Flaps" },
           ].map(({ field, label }) => (
             <div key={field} className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -438,7 +438,7 @@ export function DestinationEntry({
               <span className="text-xs text-[#4338ca]">Total Quantity</span>
             </div>
             <span className="text-sm text-[#1d4ed8] tracking-tight">
-              {(entry.totalTyres || 0) + (entry.totalTubes || 0) + (entry.totalGlaps || 0)} pcs
+              {(entry.totalTyres || 0) + (entry.totalTubes || 0) + (entry.totalFlaps || 0)} pcs
             </span>
           </div>
 
@@ -465,8 +465,8 @@ export function DestinationEntry({
                     <div className="p-2.5 rounded-lg border border-indigo-100 bg-indigo-50/40 text-indigo-700 text-xs font-semibold flex flex-wrap gap-x-3 gap-y-1">
                       <span>🚗 Tyres: {entry.totalTyres || 0}</span>
                       <span>🍩 Tubes: {entry.totalTubes || 0}</span>
-                      <span>🎗️ Glaps: {entry.totalGlaps || 0}</span>
-                      <span className="ml-auto text-[#1d4ed8]">Total items: {(entry.totalTyres || 0) + (entry.totalTubes || 0) + (entry.totalGlaps || 0)}</span>
+                      <span>🎗️ Flaps: {entry.totalFlaps || 0}</span>
+                      <span className="ml-auto text-[#1d4ed8]">Total items: {(entry.totalTyres || 0) + (entry.totalTubes || 0) + (entry.totalFlaps || 0)}</span>
                     </div>
                   </div>
                 </TooltipTrigger>

@@ -96,8 +96,8 @@ function DestinationPODCard({
     const toAddress = `${dest.customerName || "—"}, ${dest.deliveryLocation || "—"}`;
     const invoices = (dest.invoiceIds || []).filter(inv => typeof inv === "object" && inv !== null);
 
-    // Chunk invoices into pages of maximum 12 entries
-    const invoicesPerPage = 12;
+    // Chunk invoices into pages of maximum 9 entries
+    const invoicesPerPage = 9;
     const pages = [];
     for (let i = 0; i < invoices.length; i += invoicesPerPage) {
       pages.push(invoices.slice(i, i + invoicesPerPage));
@@ -109,20 +109,20 @@ function DestinationPODCard({
     const renderPage = (pageInvoices, pageIndex, totalPages) => {
       let totalQty = 0;
       let totalWeight = 0;
-      let totalGlap = 0;
+      let totalFlap = 0;
       let totalTube = 0;
       let totalTyre = 0;
 
       const rows = pageInvoices.map(inv => {
         const invQty = Number(inv.quantity) || 0;
         const invWt = Number(inv.weight) || 0;
-        const invGlap = Number(inv.glap) || 0;
+        const invFlap = Number(inv.flap) || 0;
         const invTube = Number(inv.tube) || 0;
         const invTyre = Number(inv.tyre) || 0;
 
         totalQty += invQty;
         totalWeight += invWt;
-        totalGlap += invGlap;
+        totalFlap += invFlap;
         totalTube += invTube;
         totalTyre += invTyre;
 
@@ -137,7 +137,7 @@ function DestinationPODCard({
           date: formattedDate,
           qty: invQty,
           weight: invWt.toFixed(2),
-          glap: invGlap,
+          flap: invFlap,
           tube: invTube,
           tyre: invTyre
         };
@@ -145,7 +145,7 @@ function DestinationPODCard({
 
       const pageIndicator = totalPages > 1 ? ` (Page ${pageIndex + 1} of ${totalPages})` : "";
       const displayLR = `${lrDisplay}${pageIndicator}`;
-      const spacingClass = pageInvoices.length > 8 ? "compact" : "spacious";
+      const spacingClass = pageInvoices.length > 7 ? "compact" : "spacious";
 
       const renderCopy = () => `
         <div class="lr-copy ${spacingClass}">
@@ -183,7 +183,7 @@ function DestinationPODCard({
                   <th>WEIGHT (KG)</th>
                   <th>TYRE</th>
                   <th>TUBE</th>
-                  <th>GLAP</th>
+                  <th>FLAP</th>
                 </tr>
               </thead>
               <tbody>
@@ -194,7 +194,7 @@ function DestinationPODCard({
                     <td>${r.weight}</td>
                     <td>${r.tyre}</td>
                     <td>${r.tube}</td>
-                    <td>${r.glap}</td>
+                    <td>${r.flap}</td>
                   </tr>
                 `).join("")}
                 <tr class="total-row">
@@ -202,7 +202,7 @@ function DestinationPODCard({
                   <td>${totalWeight.toFixed(2)} kg</td>
                   <td>${totalTyre}</td>
                   <td>${totalTube}</td>
-                  <td>${totalGlap}</td>
+                  <td>${totalFlap}</td>
                 </tr>
               </tbody>
             </table>
@@ -285,25 +285,25 @@ function DestinationPODCard({
 
           /* Dynamic Spacing Configuration */
           .lr-copy.spacious {
-            --padding-meta-tb: 5px;
-            --font-meta: 11px;
-            --padding-fromto-tb: 5px;
-            --font-fromto: 11px;
-            --padding-table-tb: 4px;
-            --font-table: 10.5px;
-            --sig-height: 28mm;
-            --font-sig: 9px;
+            --padding-meta-tb: 6px;
+            --font-meta: 14.5px;
+            --padding-fromto-tb: 6px;
+            --font-fromto: 14.5px;
+            --padding-table-tb: 5px;
+            --font-table: 11.5px;
+            --sig-height: 25mm;
+            --font-sig: 9.5px;
           }
 
           .lr-copy.compact {
-            --padding-meta-tb: 1px;
-            --font-meta: 9.5px;
-            --padding-fromto-tb: 2px;
-            --font-fromto: 9.5px;
-            --padding-table-tb: 1px;
-            --font-table: 9px;
-            --sig-height: 20mm;
-            --font-sig: 7.5px;
+            --padding-meta-tb: 3.5px;
+            --font-meta: 12.5px;
+            --padding-fromto-tb: 3.5px;
+            --font-fromto: 12.5px;
+            --padding-table-tb: 3px;
+            --font-table: 10px;
+            --sig-height: 18mm;
+            --font-sig: 8px;
           }
 
           .lr-copy-title-container {
@@ -420,11 +420,12 @@ function DestinationPODCard({
           }
 
           .lr-table .total-row td {
-            font-weight: 700;
+            font-weight: 800;
+            font-size: calc(var(--font-table) + 3.5px);
             background-color: #f3f4f6;
             border-bottom: none;
-            padding-top: calc(var(--padding-table-tb) - 1px);
-            padding-bottom: calc(var(--padding-table-tb) - 1px);
+            padding-top: calc(var(--padding-table-tb) + 4px);
+            padding-bottom: calc(var(--padding-table-tb) + 4px);
           }
 
           .lr-signatures {
@@ -574,7 +575,7 @@ function DestinationPODCard({
 
           <div className="grid grid-cols-2 gap-4 bg-[#fafbfc] border border-border p-3.5 rounded-xl">
             <DetailField label="Weight" value={`${dest.weightKg} kg`} />
-            <DetailField label="Quantity" value={`${dest.totalQuantity || (dest.totalTyres || 0) + (dest.totalTubes || 0) + (dest.totalGlaps || 0)} items`} />
+            <DetailField label="Quantity" value={`${dest.totalQuantity || (dest.totalTyres || 0) + (dest.totalTubes || 0) + (dest.totalFlaps || 0)} items`} />
           </div>
 
           <div>
@@ -587,8 +588,8 @@ function DestinationPODCard({
               </div>
               <div className="flex items-center gap-1.5">
                 <Disc className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-xs text-muted-foreground">Glaps:</span>
-                <span className="text-xs font-semibold text-foreground">{dest.totalGlaps || 0}</span>
+                <span className="text-xs text-muted-foreground">Flaps:</span>
+                <span className="text-xs font-semibold text-foreground">{dest.totalFlaps || 0}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Circle className="w-3.5 h-3.5 text-violet-600" />

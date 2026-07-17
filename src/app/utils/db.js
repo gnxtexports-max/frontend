@@ -233,7 +233,7 @@ export async function optimisticUpdate(method, url, body) {
                 newRecord.shipmentId = `SHP-TEMP-${Date.now().toString().slice(-4)}`;
                 newRecord.status = "Pending";
                 newRecord.totalWeightKg = (newRecord.destinations || []).reduce((acc, d) => acc + (parseFloat(d.weightKg) || 0), 0);
-                newRecord.totalQuantity = (newRecord.destinations || []).reduce((acc, d) => acc + (parseInt(d.totalTyres) || 0) + (parseInt(d.totalTubes) || 0) + (parseInt(d.totalGlaps) || 0), 0);
+                newRecord.totalQuantity = (newRecord.destinations || []).reduce((acc, d) => acc + (parseInt(d.totalTyres) || 0) + (parseInt(d.totalTubes) || 0) + (parseInt(d.totalFlaps) || 0), 0);
               } else if (moduleKey === "expenses") {
                 newRecord.status = "Pending";
               }
