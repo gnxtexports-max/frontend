@@ -19,7 +19,7 @@ export function ShipmentSummaryCard({
         <SummaryMetric icon={<Hash className="w-4 h-4 text-[#6366f1]" />}   label="Total Tubes"    value={`${totalTubesAll}`} />
         <SummaryMetric icon={<Hash className="w-4 h-4 text-[#8b5cf6]" />}   label="Total Flaps"    value={`${totalFlapsAll}`} />
         <SummaryMetric icon={<Layers className="w-4 h-4 text-[#1d4ed8]" />} label="Total Quantity" value={`${totalQuantity}`} />
-        <SummaryMetric icon={<Weight className="w-4 h-4 text-[#1d4ed8]" />} label="Total Weight"   value={`${(totalWeight || 0).toFixed(1)} kg`} />
+        <SummaryMetric icon={<Weight className="w-4 h-4 text-[#1d4ed8]" />} label="Total Weight"   value={`${(totalWeight || 0).toFixed(2)} kg`} />
       </div>
 
       {overCapacity && (
@@ -28,8 +28,8 @@ export function ShipmentSummaryCard({
           <div>
             <p className="text-sm font-medium">Weight exceeds vehicle capacity</p>
             <p className="text-xs text-red-600 mt-0.5">
-              Total weight ({(totalWeight || 0).toFixed(1)} kg) exceeds the selected vehicle capacity ({vehicleCapacity} kg) by{" "}
-              {Math.max(0, totalWeight - vehicleCapacity).toFixed(1)} kg. Please reduce items or select a larger vehicle.
+              Total weight ({(totalWeight || 0).toFixed(2)} kg) exceeds the selected vehicle capacity ({vehicleCapacity} kg) by{" "}
+              {Math.max(0, totalWeight - vehicleCapacity).toFixed(2)} kg. Please reduce items or select a larger vehicle.
             </p>
           </div>
         </div>

@@ -574,7 +574,7 @@ function DestinationPODCard({
           </div>
 
           <div className="grid grid-cols-2 gap-4 bg-[#fafbfc] border border-border p-3.5 rounded-xl">
-            <DetailField label="Weight" value={`${dest.weightKg} kg`} />
+            <DetailField label="Weight" value={`${Number(dest.weightKg || 0).toFixed(2)} kg`} />
             <DetailField label="Quantity" value={`${dest.totalQuantity || (dest.totalTyres || 0) + (dest.totalTubes || 0) + (dest.totalFlaps || 0)} items`} />
           </div>
 

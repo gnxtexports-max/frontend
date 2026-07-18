@@ -139,7 +139,7 @@ export function PlantRow({
         <div className="flex items-center gap-2">
           <PackageIcon />
           <div>
-            <span className="text-sm text-foreground">{(totalWeightKg || 0).toFixed(1)} kg</span>
+            <span className="text-sm text-foreground">{(totalWeightKg || 0).toFixed(2)} kg</span>
             <p className="text-xs text-muted-foreground mt-0.5">
               {totalQuantity} {totalQuantity === 1 ? "item" : "items"}
             </p>

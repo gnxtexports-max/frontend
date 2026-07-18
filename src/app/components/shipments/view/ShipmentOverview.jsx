@@ -55,7 +55,7 @@ export function ShipmentOverview({ shipment, detail, totalQty, totalWt }) {
         </div>
         <div className="border-t border-border grid grid-cols-3 divide-x divide-border">
           <OverviewCell label="Total Quantity" value={`${totalQty} units`}         icon={<Hash className="w-3.5 h-3.5" />} />
-          <OverviewCell label="Total Weight"   value={`${(totalWt || 0).toFixed(1)} kg`}             icon={<Weight className="w-3.5 h-3.5" />} />
+          <OverviewCell label="Total Weight"   value={`${(totalWt || 0).toFixed(2)} kg`}             icon={<Weight className="w-3.5 h-3.5" />} />
           <OverviewCell label="Destinations"   value={`${destinations.length}`}    icon={<Navigation className="w-3.5 h-3.5" />} />
         </div>
         <div className="border-t border-border grid grid-cols-1 sm:grid-cols-2 divide-x divide-border">

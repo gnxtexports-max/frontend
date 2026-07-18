@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Building2, Package, Hash, Weight, Layers, FileText, Trash2, Users } from "lucide-react";
+import { Building2, Package, Hash, Weight, Layers, FileText, Trash2, Users, Save, MousePointerClick } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
@@ -30,15 +30,20 @@ export function DestinationEntry({
   isEditMode = false,
   initialInvoices = [], // array of populated invoice objects
 }) {
-  const activePlants = [entry.plantReferenceNumber, ...(entry.additionalPlants || [])].filter(Boolean);
+  const activePlants = [...(entry.additionalPlants || []), entry.plantReferenceNumber].filter(Boolean);
   const [plantNumbers, setPlantNumbers] = useState([]);
-  const [invoices, setInvoices]         = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [relatedPlants, setRelatedPlants] = useState([]);
-  const [loadingPlants, setLoadingPlants]   = useState(false);
+  const [loadingPlants, setLoadingPlants] = useState(false);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const prevPlantsRef = useRef(
     [entry.plantReferenceNumber, ...(entry.additionalPlants || [])].filter(Boolean)
   );
+
+  // ── Per-plant editor state ──────────────────────────────────────────────────
+  const [selectedPlant, setSelectedPlant] = useState(null); // which plant card is active in the editor
+  const [editData, setEditData] = useState({ totalTyres: "", totalTubes: "", totalFlaps: "", weightKg: "" });
+  const [savedPlants, setSavedPlants] = useState(new Set()); // tracks which plants have been saved once
 
   // Fetch plant numbers on mount
   useEffect(() => {
@@ -52,31 +57,31 @@ export function DestinationEntry({
 
 
 
-  // Fetch invoices when plant or additional plants change — also auto-fill customerName + location
+  // Fetch invoices when plant or additional plants change — build per-plant data in entry.plantData
   useEffect(() => {
     const currentPlants = [entry.plantReferenceNumber, ...(entry.additionalPlants || [])].filter(Boolean);
     if (currentPlants.length === 0) {
       setInvoices([]);
       prevPlantsRef.current = [];
-      onUpdate(entry.id, "weightKg", "");
-      onUpdate(entry.id, "totalTyres", 0);
-      onUpdate(entry.id, "totalTubes", 0);
-      onUpdate(entry.id, "totalFlaps", 0);
+      onUpdate(entry.id, "plantData", {});
       return;
     }
 
     setLoadingInvoices(true);
 
+    const includeIds = (entry.invoiceIds || []).map(id => typeof id === "object" ? id._id : id).filter(Boolean).join(",");
+    const queryParam = includeIds ? `?includeInvoiceIds=${encodeURIComponent(includeIds)}` : "";
+
     Promise.all(
       currentPlants.map((plant) =>
-        fetch(`${API_BASE_URL}/shipments/invoices-by-plant/${encodeURIComponent(plant)}`, { credentials: "include" })
+        fetch(`${API_BASE_URL}/shipments/invoices-by-plant/${encodeURIComponent(plant)}${queryParam}`, { credentials: "include" })
           .then((r) => r.json())
-          .then((res) => (res.success ? res.data : []))
-          .catch(() => [])
+          .then((res) => ({ plant, invoices: res.success ? res.data : [] }))
+          .catch(() => ({ plant, invoices: [] }))
       )
     )
-      .then((results) => {
-        const combined = results.flat();
+      .then((perPlantResults) => {
+        const combined = perPlantResults.flatMap((r) => r.invoices);
 
         // Sort by invoiceDate descending
         combined.sort((a, b) => {
@@ -85,52 +90,85 @@ export function DestinationEntry({
           return dB - dA;
         });
 
-        // Combine with initialInvoices for weight calculation
+        // Combine with initialInvoices
         const combinedInvoicesMap = new Map();
         [...(initialInvoices || []), ...combined].forEach((inv) => {
-          if (inv && inv._id) {
-            combinedInvoicesMap.set(inv._id.toString(), inv);
-          }
+          if (inv && inv._id) combinedInvoicesMap.set(inv._id.toString(), inv);
         });
-        const activeInvoices = Array.from(combinedInvoicesMap.values()).filter(
-          (inv) =>
-            inv.plantReferenceNumber && currentPlants.includes(inv.plantReferenceNumber.toString())
-        );
 
         setInvoices(combined);
-
-        // Check if plant selection actually changed
-        const plantsChanged = !arraysEqual(currentPlants, prevPlantsRef.current);
         prevPlantsRef.current = currentPlants;
 
-        // Auto-fill customerName and deliveryLocation from first invoice
-        if (activeInvoices.length > 0) {
-          const first = activeInvoices[0];
-          if (!entry.customerName && first.customerName) {
-            onUpdate(entry.id, "customerName", first.customerName);
-          }
-          if (!entry.deliveryLocation && first.location) {
-            onUpdate(entry.id, "deliveryLocation", first.location);
-          }
+        // Auto-fill customerName / deliveryLocation
+        const allActive = Array.from(combinedInvoicesMap.values()).filter(
+          (inv) => inv.plantReferenceNumber && currentPlants.includes(inv.plantReferenceNumber.toString())
+        );
+        if (allActive.length > 0) {
+          const first = allActive[0];
+          if (!entry.customerName && first.customerName) onUpdate(entry.id, "customerName", first.customerName);
+          if (!entry.deliveryLocation && first.location) onUpdate(entry.id, "deliveryLocation", first.location);
         }
 
-        if (plantsChanged) {
-          const totalWeight = activeInvoices.reduce((sum, inv) => sum + (Number(inv.weight) || 0), 0);
-          onUpdate(entry.id, "weightKg", totalWeight ? totalWeight.toFixed(1) : "");
-
-          const totalTyres = activeInvoices.reduce((sum, inv) => sum + (Number(inv.tyre) || 0), 0);
-          onUpdate(entry.id, "totalTyres", totalTyres || 0);
-
-          const totalTubes = activeInvoices.reduce((sum, inv) => sum + (Number(inv.tube) || 0), 0);
-          onUpdate(entry.id, "totalTubes", totalTubes || 0);
-
-          const totalFlaps = activeInvoices.reduce((sum, inv) => sum + (Number(inv.flap) || 0), 0);
-          onUpdate(entry.id, "totalFlaps", totalFlaps || 0);
+        // Build per-plant data from invoice totals (only seed if user hasn't already saved custom values)
+        const existingPlantData = entry.plantData || {};
+        const newPlantData = { ...existingPlantData };
+        let changed = false;
+        for (const { plant } of perPlantResults) {
+          // If the user already saved custom data for this plant, don't overwrite
+          if (savedPlants.has(plant) && existingPlantData[plant]) continue;
+          const plantInvs = Array.from(combinedInvoicesMap.values()).filter(
+            (inv) => inv.plantReferenceNumber && inv.plantReferenceNumber.toString() === plant
+          );
+          const autoData = {
+            totalTyres:  plantInvs.reduce((s, inv) => s + (Number(inv.tyre)   || 0), 0),
+            totalTubes:  plantInvs.reduce((s, inv) => s + (Number(inv.tube)   || 0), 0),
+            totalFlaps:  plantInvs.reduce((s, inv) => s + (Number(inv.flap)   || 0), 0),
+            weightKg:    plantInvs.reduce((s, inv) => s + (Number(inv.weight) || 0), 0).toFixed(2),
+          };
+          if (JSON.stringify(existingPlantData[plant]) !== JSON.stringify(autoData)) {
+            newPlantData[plant] = autoData;
+            changed = true;
+          }
         }
+        // Remove stale plants that are no longer selected
+        for (const key of Object.keys(newPlantData)) {
+          if (!currentPlants.includes(key)) { delete newPlantData[key]; changed = true; }
+        }
+        if (changed) onUpdate(entry.id, "plantData", newPlantData);
       })
       .catch(() => setInvoices([]))
       .finally(() => setLoadingInvoices(false));
-  }, [entry.plantReferenceNumber, entry.additionalPlants]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry.plantReferenceNumber, entry.additionalPlants, entry.invoiceIds]);
+
+  // When a plant card is clicked: load its current data into the editor
+  const handleSelectPlant = (plant) => {
+    setSelectedPlant(plant);
+    const pd = (entry.plantData || {})[plant] || {};
+    setEditData({
+      totalTyres: pd.totalTyres ?? "",
+      totalTubes: pd.totalTubes ?? "",
+      totalFlaps: pd.totalFlaps ?? "",
+      weightKg:   pd.weightKg   ?? "",
+    });
+  };
+
+  // Save the edited values back to entry.plantData for the selected plant
+  const handleSavePlantData = () => {
+    if (!selectedPlant) return;
+    const updated = {
+      ...(entry.plantData || {}),
+      [selectedPlant]: {
+        totalTyres: parseInt(editData.totalTyres) || 0,
+        totalTubes: parseInt(editData.totalTubes) || 0,
+        totalFlaps: parseInt(editData.totalFlaps) || 0,
+        weightKg:   editData.weightKg || "0.00",
+      },
+    };
+    onUpdate(entry.id, "plantData", updated);
+    setSavedPlants((prev) => new Set(prev).add(selectedPlant));
+    setSelectedPlant(null); // deselect after saving
+  };
 
   // Automatically synchronize invoiceIds with the active plants' invoices
   useEffect(() => {
@@ -269,17 +307,15 @@ export function DestinationEntry({
                     <Badge
                       key={plant}
                       variant="outline"
-                      className={`px-2 py-0.5 text-xs flex items-center gap-1.5 transition-colors border select-none ${
-                        isPrimary || isAdditional
-                          ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-medium cursor-pointer"
-                          : isUsedElsewhere
+                      className={`px-2 py-0.5 text-xs flex items-center gap-1.5 transition-colors border select-none ${isPrimary || isAdditional
+                        ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-medium cursor-pointer"
+                        : isUsedElsewhere
                           ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-50"
                           : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 cursor-pointer"
-                      }`}
+                        }`}
                       onClick={() => {
                         if (isUsedElsewhere) return;
-                        if (isPrimary) return;
-                        if (isAdditional) {
+                        if (isPrimary || isAdditional) {
                           onRemoveRelatedPlant?.(plant);
                         } else {
                           onAddRelatedPlant?.(plant);
@@ -287,9 +323,14 @@ export function DestinationEntry({
                       }}
                     >
                       <span>{plant}</span>
-                      {!isPrimary && !isUsedElsewhere && (
-                        <span className={`text-[9px] font-bold ${isAdditional ? "text-indigo-400 hover:text-red-500" : "text-emerald-500"}`}>
-                          {isAdditional ? "✕ Remove" : "+ Add"}
+                      {(isPrimary || isAdditional) && (
+                        <span className="text-[9px] font-bold text-indigo-400 hover:text-red-500">
+                          ✕ Remove
+                        </span>
+                      )}
+                      {!isPrimary && !isAdditional && !isUsedElsewhere && (
+                        <span className="text-[9px] font-bold text-emerald-500">
+                          + Add
                         </span>
                       )}
                       {isUsedElsewhere && (
@@ -322,7 +363,7 @@ export function DestinationEntry({
                     const plantInvoices = [...(initialInvoices || []), ...invoices].filter(
                       (inv) => inv && inv.plantReferenceNumber && inv.plantReferenceNumber.toString() === plant.toString()
                     );
-                    
+
                     // Filter duplicates by _id
                     const uniqueInvoicesMap = new Map();
                     plantInvoices.forEach((inv) => {
@@ -331,42 +372,64 @@ export function DestinationEntry({
                       }
                     });
                     const uniqueInvoices = Array.from(uniqueInvoicesMap.values());
-                    
+
                     const firstInv = uniqueInvoices[0];
                     const location = firstInv?.location || "";
                     const customerName = firstInv?.customerName || "";
 
+                    const isSelected = selectedPlant === plant;
+                    const pd = (entry.plantData || {})[plant];
+
                     return (
                       <div
                         key={plant}
-                        className="bg-white border border-[#c7d7fe] hover:border-[#a3b8cc] rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all"
+                        className={`bg-white rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all border-2 ${
+                          isSelected
+                            ? "border-indigo-400 ring-2 ring-indigo-100"
+                            : "border-[#c7d7fe] hover:border-[#a3b8cc]"
+                        }`}
                       >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-semibold text-[#1d4ed8] tracking-tight flex items-center gap-1">
-                              <Building2 className="w-3.5 h-3.5 text-[#1d4ed8]" /> Plant: {plant}
+                              <Building2 className="w-3.5 h-3.5 text-[#1d4ed8]" /> {customerName || "Loading..."}
                             </span>
-                            <Badge className="bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0] text-[9px] font-medium px-2 py-0.5 rounded-full">
-                              {plant === entry.plantReferenceNumber ? "Primary" : "Included"}
-                            </Badge>
-                            {/* Remove button — only for additional (non-primary) plants */}
-                            {plant !== entry.plantReferenceNumber && (
-                              <button
-                                type="button"
-                                title="Remove this plant"
-                                onClick={() => onRemoveRelatedPlant?.(plant)}
-                                className="ml-auto text-[10px] font-bold text-red-400 hover:text-red-600 hover:bg-red-50 border border-red-200 rounded px-1.5 py-0.5 transition-colors leading-none flex items-center gap-0.5"
-                              >
-                                ✕ Remove
-                              </button>
-                            )}
+                            {/* Edit Qty button */}
+                            <button
+                              type="button"
+                              title="Edit quantities & weight for this plant"
+                              onClick={() => handleSelectPlant(plant)}
+                              className={`text-[10px] font-bold border rounded px-1.5 py-0.5 transition-colors leading-none flex items-center gap-0.5 ${
+                                isSelected
+                                  ? "text-indigo-600 border-indigo-300 bg-indigo-50"
+                                  : "text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 border-indigo-200"
+                              }`}
+                            >
+                              ✏ Edit Qty
+                            </button>
+                            {/* Remove button */}
+                            <button
+                              type="button"
+                              title="Remove this plant"
+                              onClick={() => onRemoveRelatedPlant?.(plant)}
+                              className="ml-auto text-[10px] font-bold text-red-400 hover:text-red-600 hover:bg-red-50 border border-red-200 rounded px-1.5 py-0.5 transition-colors leading-none flex items-center gap-0.5"
+                            >
+                              ✕ Remove
+                            </button>
                           </div>
-                          {customerName && (
-                            <p className="text-xs text-slate-700 font-medium">{customerName}</p>
-                          )}
+                          <p className="text-xs text-slate-700 font-medium">Plant: {plant}</p>
                           {location && (
                             <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                               📍 {location}
+                            </p>
+                          )}
+                          {/* Saved per-plant data summary */}
+                          {pd && (
+                            <p className="text-[10px] text-emerald-600 font-semibold flex gap-2 flex-wrap pt-0.5">
+                              <span>🚗 {pd.totalTyres||0}</span>
+                              <span>🍩 {pd.totalTubes||0}</span>
+                              <span>🎗️ {pd.totalFlaps||0}</span>
+                              <span>⚖️ {pd.weightKg||0} kg</span>
                             </p>
                           )}
                         </div>
@@ -396,86 +459,134 @@ export function DestinationEntry({
                   })
                 )}
               </div>
-              {!loadingInvoices && invoices.length > 0 && (
-                <p className="text-[11px] text-[#16a34a] font-medium flex items-center gap-1">
-                  ✓ {invoices.length} invoice{invoices.length > 1 ? "s" : ""} from {activePlants.length} plant{activePlants.length > 1 ? "s" : ""} automatically included under this destination
-                </p>
-              )}
             </div>
           )}
         </div>
 
-        {/* Right: Quantities & Weight */}
+        {/* Right: Per-plant Quantities & Weight editor */}
         <div className="space-y-4">
-          <h4 className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <Package className="w-3.5 h-3.5" /> Item Quantities & Weight
-          </h4>
+          {selectedPlant ? (
+            /* ── EDIT MODE: editing a specific plant ── */
+            <>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Package className="w-3.5 h-3.5" /> Plant Data
+                  <span className="ml-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5">
+                    {selectedPlant}
+                  </span>
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlant(null)}
+                  className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  ✕ cancel
+                </button>
+              </div>
 
-          {[
-            { field: "totalTyres", label: "Total Tyres" },
-            { field: "totalTubes", label: "Total Tubes" },
-            { field: "totalFlaps", label: "Total Flaps" },
-          ].map(({ field, label }) => (
-            <div key={field} className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Hash className="w-3 h-3" /> {label}
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                value={entry[field] || ""}
-                onChange={(e) => onUpdate(entry.id, field, parseInt(e.target.value) || 0)}
-                placeholder="0"
-                className="bg-white border-border h-11"
-              />
-            </div>
-          ))}
+              {[
+                { field: "totalTyres", label: "Total Tyres" },
+                { field: "totalTubes", label: "Total Tubes" },
+                { field: "totalFlaps", label: "Total Flaps" },
+              ].map(({ field, label }) => (
+                <div key={field} className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Hash className="w-3 h-3" /> {label}
+                  </Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={editData[field] ?? ""}
+                    onChange={(ev) => setEditData((p) => ({ ...p, [field]: ev.target.value }))}
+                    placeholder="0"
+                    className="bg-white border-indigo-300 ring-1 ring-indigo-200 h-11"
+                  />
+                </div>
+              ))}
 
-          {/* Auto total */}
-          <div className="bg-[#eef2ff] border border-[#c7d7fe] rounded-xl p-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-[#4338ca]" />
-              <span className="text-xs text-[#4338ca]">Total Quantity</span>
-            </div>
-            <span className="text-sm text-[#1d4ed8] tracking-tight">
-              {(entry.totalTyres || 0) + (entry.totalTubes || 0) + (entry.totalFlaps || 0)} pcs
-            </span>
-          </div>
+              {/* Total */}
+              <div className="bg-[#eef2ff] border border-[#c7d7fe] rounded-xl p-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-[#4338ca]" />
+                  <span className="text-xs text-[#4338ca]">Subtotal</span>
+                </div>
+                <span className="text-sm text-[#1d4ed8] tracking-tight">
+                  {(parseInt(editData.totalTyres) || 0) + (parseInt(editData.totalTubes) || 0) + (parseInt(editData.totalFlaps) || 0)} pcs
+                </span>
+              </div>
 
-          {/* Weight */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Weight className="w-3 h-3" /> Weight (kg)
-            </Label>
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="space-y-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.5"
-                      value={entry.weightKg || ""}
-                      onChange={(e) => onUpdate(entry.id, "weightKg", e.target.value)}
-                      placeholder="Enter weight in kg"
-                      className="bg-white border-border h-11"
-                    />
-                    
-                    {/* Combined values display alongside weight */}
-                    <div className="p-2.5 rounded-lg border border-indigo-100 bg-indigo-50/40 text-indigo-700 text-xs font-semibold flex flex-wrap gap-x-3 gap-y-1">
-                      <span>🚗 Tyres: {entry.totalTyres || 0}</span>
-                      <span>🍩 Tubes: {entry.totalTubes || 0}</span>
-                      <span>🎗️ Flaps: {entry.totalFlaps || 0}</span>
-                      <span className="ml-auto text-[#1d4ed8]">Total items: {(entry.totalTyres || 0) + (entry.totalTubes || 0) + (entry.totalFlaps || 0)}</span>
+              {/* Weight for this plant */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Weight className="w-3 h-3" /> Weight (kg)
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.5"
+                  value={editData.weightKg ?? ""}
+                  onChange={(ev) => setEditData((p) => ({ ...p, weightKg: ev.target.value }))}
+                  placeholder="Enter weight in kg"
+                  className="bg-white border-indigo-300 ring-1 ring-indigo-200 h-11"
+                />
+              </div>
+
+              {/* Save button */}
+              <Button
+                type="button"
+                onClick={handleSavePlantData}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                Save for Plant {selectedPlant}
+              </Button>
+            </>
+          ) : (
+            /* ── SUMMARY MODE: no plant selected ── */
+            <>
+              <h4 className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Package className="w-3.5 h-3.5" /> Item Quantities & Weight
+              </h4>
+
+              {/* Prompt to click a plant */}
+              {activePlants.length > 0 && (
+                <div className="flex items-center gap-2 text-[11px] text-indigo-500 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+                  <MousePointerClick className="w-3.5 h-3.5 shrink-0" />
+                  Click a plant card on the left to edit its quantities & weight individually.
+                </div>
+              )}
+
+
+
+
+              {/* Combined totals (read-only sum from plantData) */}
+              {(() => {
+                const pd = entry.plantData || {};
+                const vals = Object.values(pd);
+                const tyres  = vals.reduce((s, v) => s + (v.totalTyres  || 0), 0);
+                const tubes  = vals.reduce((s, v) => s + (v.totalTubes  || 0), 0);
+                const flaps  = vals.reduce((s, v) => s + (v.totalFlaps  || 0), 0);
+                const weight = vals.reduce((s, v) => s + (parseFloat(v.weightKg) || 0), 0);
+                return (
+                  <div className="bg-[#eef2ff] border border-[#c7d7fe] rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-[#4338ca]" />
+                        <span className="text-xs text-[#4338ca]">Combined Total</span>
+                      </div>
+                      <span className="text-sm text-[#1d4ed8] tracking-tight">{tyres + tubes + flaps} pcs</span>
+                    </div>
+                    <div className="text-[11px] text-indigo-700 font-semibold flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span>🚗 Tyres: {tyres}</span>
+                      <span>🍩 Tubes: {tubes}</span>
+                      <span>🎗️ Flaps: {flaps}</span>
+                      <span className="ml-auto text-[#1d4ed8]">⚖️ {weight.toFixed(2)} kg</span>
                     </div>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="center" className="bg-[#1e293b] text-white p-2.5 text-xs rounded-md shadow-lg border border-slate-700">
-                  Total selected plant quantity: {invoices.reduce((sum, inv) => sum + (inv.quantity || 0), 0)} pcs
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+                );
+              })()}
+            </>
+          )}
         </div>
       </div>
     </div>

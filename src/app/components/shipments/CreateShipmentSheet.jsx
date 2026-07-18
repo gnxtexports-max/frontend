@@ -22,7 +22,8 @@ const emptyEntry = () => ({
   plantReferenceNumber: "",
   additionalPlants: [],
   invoiceIds: [],
-  totalTyres: 0,
+  plantData: {},       // per-plant: { [plantNumber]: { totalTyres, totalTubes, totalFlaps, weightKg } }
+  totalTyres: 0,       // combined (computed from plantData)
   totalTubes: 0,
   totalFlaps: 0,
   weightKg: "",
@@ -84,12 +85,15 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
         const parts = (dest.plantReferenceNumber || "").split(",").map((p) => p.trim()).filter(Boolean);
         const primary = parts[0] || "";
         const additional = parts.slice(1);
+        // Restore plantData from saved dest; if not stored, seed a single record for the primary plant
+        const restoredPlantData = dest.plantData || {};
         return {
           id: generateId(),
           plantReferenceNumber: primary,
           additionalPlants: additional,
           invoiceIds: (dest.invoiceIds ?? []).map((inv) => (typeof inv === "object" ? inv._id : inv)),
           deliveryLocation: dest.deliveryLocation || "",
+          plantData: restoredPlantData,
           totalTyres: dest.totalTyres || 0,
           totalTubes: dest.totalTubes || 0,
           totalFlaps: dest.totalFlaps || 0,
@@ -116,11 +120,23 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
     }
   }, [open, editShipment]);
 
-  const totalTyresAll = dealerEntries.reduce((s, e) => s + (e.totalTyres || 0), 0);
-  const totalTubesAll = dealerEntries.reduce((s, e) => s + (e.totalTubes || 0), 0);
-  const totalFlapsAll = dealerEntries.reduce((s, e) => s + (e.totalFlaps || 0), 0);
-  const totalQuantity = totalTyresAll + totalTubesAll + totalFlapsAll;
-  const totalWeight = dealerEntries.reduce((s, e) => s + (parseFloat(e.weightKg) || 0), 0);
+  // Compute combined totals — prefer summing plantData when available, fall back to entry-level fields
+  const computeCombined = (e) => {
+    const pd = e.plantData || {};
+    const vals = Object.values(pd);
+    if (vals.length === 0) return { tyres: e.totalTyres || 0, tubes: e.totalTubes || 0, flaps: e.totalFlaps || 0, weight: parseFloat(e.weightKg) || 0 };
+    return {
+      tyres:  vals.reduce((s, v) => s + (v.totalTyres || 0), 0),
+      tubes:  vals.reduce((s, v) => s + (v.totalTubes || 0), 0),
+      flaps:  vals.reduce((s, v) => s + (v.totalFlaps || 0), 0),
+      weight: vals.reduce((s, v) => s + (parseFloat(v.weightKg) || 0), 0),
+    };
+  };
+  const totalTyresAll  = dealerEntries.reduce((s, e) => s + computeCombined(e).tyres,  0);
+  const totalTubesAll  = dealerEntries.reduce((s, e) => s + computeCombined(e).tubes,  0);
+  const totalFlapsAll  = dealerEntries.reduce((s, e) => s + computeCombined(e).flaps,  0);
+  const totalQuantity  = totalTyresAll + totalTubesAll + totalFlapsAll;
+  const totalWeight    = dealerEntries.reduce((s, e) => s + computeCombined(e).weight, 0);
 
   const addEntry = () => setDealerEntries((p) => [...p, emptyEntry()]);
   const removeEntry = (id) => setDealerEntries((p) => p.filter((e) => e.id !== id));
@@ -135,7 +151,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
           if (!additional.includes(plantRef)) {
             return {
               ...e,
-              additionalPlants: [...additional, plantRef],
+              additionalPlants: [plantRef, ...additional], // Prepend new plants (last added is first)
             };
           }
         }
@@ -149,10 +165,29 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
       p.map((e) => {
         if (e.id === entryId) {
           const additional = e.additionalPlants || [];
-          return {
-            ...e,
-            additionalPlants: additional.filter((pr) => pr !== plantRef),
-          };
+          if (e.plantReferenceNumber === plantRef) {
+            // If removing primary plant, promote the first additional plant if available
+            if (additional.length > 0) {
+              const nextPrimary = additional[0];
+              return {
+                ...e,
+                plantReferenceNumber: nextPrimary,
+                additionalPlants: additional.slice(1),
+              };
+            } else {
+              return {
+                ...e,
+                plantReferenceNumber: "",
+                additionalPlants: [],
+              };
+            }
+          } else {
+            // Removing additional plant
+            return {
+              ...e,
+              additionalPlants: additional.filter((pr) => pr !== plantRef),
+            };
+          }
         }
         return e;
       })
@@ -201,7 +236,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
       const vehicleCapacity = selectedVehicle.capacityKg || selectedVehicle.capacity || 0;
       if (vehicleCapacity > 0 && totalWeight > vehicleCapacity) {
         const proceed = window.confirm(
-          `Warning: Total weight of the shipment (${totalWeight.toFixed(1)} kg) exceeds the vehicle capacity (${vehicleCapacity} kg).\n\nDo you want to proceed?`
+          `Warning: Total weight of the shipment (${totalWeight.toFixed(2)} kg) exceeds the vehicle capacity (${vehicleCapacity} kg).\n\nDo you want to proceed?`
         );
         if (!proceed) return;
       }
@@ -210,15 +245,19 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
     setSubmitting(true);
     try {
       const payload = {
-        destinations: dealerEntries.map((e) => ({
-          plantReferenceNumber: [e.plantReferenceNumber, ...(e.additionalPlants || [])].filter(Boolean).join(", "),
-          invoiceIds: e.invoiceIds || [],
-          deliveryLocation: e.deliveryLocation || "",
-          totalTyres: e.totalTyres || 0,
-          totalTubes: e.totalTubes || 0,
-          totalFlaps: e.totalFlaps || 0,
-          weightKg: parseFloat(e.weightKg) || 0,
-        })),
+        destinations: dealerEntries.map((e) => {
+          const c = computeCombined(e);
+          return {
+            plantReferenceNumber: [e.plantReferenceNumber, ...(e.additionalPlants || [])].filter(Boolean).join(", "),
+            invoiceIds: e.invoiceIds || [],
+            deliveryLocation: e.deliveryLocation || "",
+            plantData: e.plantData || {},          // per-plant breakdown saved for LR split-up
+            totalTyres:  c.tyres,
+            totalTubes:  c.tubes,
+            totalFlaps:  c.flaps,
+            weightKg:    c.weight,
+          };
+        }),
         vehicleId,
         driverId,
       };
