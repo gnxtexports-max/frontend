@@ -6,7 +6,11 @@ import {
 import {
   ChevronDown,
   ChevronRight,
+  Edit2,
+  Eye,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
+import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
 import StatusBadge from "./StatusBadge";
 import DeleteButton from "./DeleteButton";
@@ -285,40 +289,104 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEd
 
 function RemarkCell({ invoiceId, field, initialValue, canEdit }) {
   const [value, setValue] = useState(initialValue || "");
+  const [tempValue, setTempValue] = useState(initialValue || "");
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setValue(initialValue || "");
+    setTempValue(initialValue || "");
   }, [initialValue]);
 
-  const handleBlur = async () => {
-    if (value === (initialValue || "")) return;
+  const handleOpen = () => {
+    setTempValue(value);
+    setIsOpen(true);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
     try {
       const API_BASE_URL = import.meta.env?.VITE_API_URL || "http://localhost:5000/api";
-      await fetch(`${API_BASE_URL}/invoices/${invoiceId}/remarks`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}/remarks`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ [field]: value }),
+        body: JSON.stringify({ [field]: tempValue }),
       });
+      if (response.ok) {
+        setValue(tempValue);
+        setIsOpen(false);
+      } else {
+        console.error("Failed to save remark: response not ok");
+      }
     } catch (err) {
       console.error("Failed to save remark", err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  if (!canEdit) {
-    return <span className="text-xs text-slate-600">{value || "—"}</span>;
-  }
+  const displayTitle = field === "beforeDispatchRemarks" ? "Before Dispatch Remarks" : "After Dispatch Remarks";
 
   return (
-    <div onClick={(e) => e.stopPropagation()} className="min-w-[130px]">
-      <input
-        type="text"
-        placeholder="Add remark..."
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleBlur}
-        className="w-full text-xs px-2 py-1 bg-slate-50 hover:bg-white border border-slate-200 hover:border-slate-300 focus:border-blue-500 focus:bg-white rounded outline-none transition-colors"
-      />
+    <div onClick={(e) => e.stopPropagation()}>
+      {/* Clickable summary block */}
+      <div
+        onClick={handleOpen}
+        className="cursor-pointer max-w-[150px] text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all font-medium truncate select-none text-slate-700 bg-white shadow-sm flex items-center justify-between gap-1.5"
+      >
+        <span className={value ? "truncate flex-1" : "text-slate-400 italic flex-1"}>
+          {value || "Add remark..."}
+        </span>
+        {canEdit ? (
+          <Edit2 className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+        ) : (
+          <Eye className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+        )}
+      </div>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-md bg-white border border-border shadow-2xl rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-800">{displayTitle}</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              {canEdit ? "Update the remark for this invoice." : "View the remark for this invoice."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="my-4">
+            <Textarea
+              placeholder={canEdit ? "Type your remark here..." : "No remarks entered."}
+              value={tempValue}
+              onChange={(e) => setTempValue(e.target.value)}
+              disabled={!canEdit || isSaving}
+              className="min-h-[120px] text-sm resize-none bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsOpen(false)}
+              className="text-xs font-semibold text-slate-600 hover:text-slate-800 border-slate-200 rounded-lg px-4"
+              disabled={isSaving}
+            >
+              {canEdit ? "Cancel" : "Close"}
+            </Button>
+            {canEdit && (
+              <Button
+                size="sm"
+                onClick={handleSave}
+                className="text-xs font-semibold bg-[#1d4ed8] hover:bg-blue-700 text-white rounded-lg px-4 flex items-center gap-1"
+                disabled={isSaving}
+              >
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

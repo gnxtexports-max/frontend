@@ -36,7 +36,7 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({ status: "Returned - Awaiting" }),
+        body: JSON.stringify({ status: "Reassignment" }),
       });
       const result = await res.json();
       if (res.ok) {
@@ -190,26 +190,30 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
                               : (plant.deliveredAt ? new Date(plant.deliveredAt).toLocaleString("en-IN") : "—")}
                           </TableCell>
                           <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-[10px] font-semibold bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-2 rounded-md inline-flex items-center gap-1"
-                              onClick={async () => {
-                                const confirmReturn = window.confirm(`Are you sure you want to return all ${plant.invoices?.length || 0} invoices for Plant ${plant.plantNumber}?`);
-                                if (!confirmReturn) return;
-                                let anySuccess = false;
-                                for (const inv of plant.invoices || []) {
-                                  const ok = await handleReturnInvoice(inv._id);
-                                  if (ok) anySuccess = true;
-                                }
-                                if (anySuccess) {
-                                  fetchHistory(searchQuery, currentPage);
-                                }
-                              }}
-                            >
-                              <CornerUpLeft className="w-3 h-3" />
-                              Return All
-                            </Button>
+                             {plant.status === "Cancelled" ? (
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 className="h-7 text-[10px] font-semibold bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-2 rounded-md inline-flex items-center gap-1"
+                                 onClick={async () => {
+                                   const confirmReturn = window.confirm(`Are you sure you want to return all ${plant.invoices?.length || 0} invoices for Plant ${plant.plantNumber}?`);
+                                   if (!confirmReturn) return;
+                                   let anySuccess = false;
+                                   for (const inv of plant.invoices || []) {
+                                     const ok = await handleReturnInvoice(inv._id);
+                                     if (ok) anySuccess = true;
+                                   }
+                                   if (anySuccess) {
+                                     fetchHistory(searchQuery, currentPage);
+                                   }
+                                 }}
+                               >
+                                 <CornerUpLeft className="w-3 h-3" />
+                                 Return All
+                               </Button>
+                             ) : (
+                               <span className="text-xs text-muted-foreground">—</span>
+                             )}
                           </TableCell>
                         </TableRow>
 
