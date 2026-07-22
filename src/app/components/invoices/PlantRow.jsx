@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   TableRow,
   TableCell,
@@ -119,7 +119,29 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEd
         </TableCell>
 
         <TableCell>
-          <StatusBadge status={first?.status || plant.status} isDelayed={isPendingDelayed} />
+          <StatusBadge status={first?.status || plant.status} isDelayed={isPendingDelayed} cancellationReason={first?.cancellationReason} />
+        </TableCell>
+
+        <TableCell onClick={(e) => e.stopPropagation()}>
+          {first && (
+            <RemarkCell
+              invoiceId={first._id}
+              field="beforeDispatchRemarks"
+              initialValue={first.beforeDispatchRemarks}
+              canEdit={canEdit}
+            />
+          )}
+        </TableCell>
+
+        <TableCell onClick={(e) => e.stopPropagation()}>
+          {first && (
+            <RemarkCell
+              invoiceId={first._id}
+              field="afterDispatchRemarks"
+              initialValue={first.afterDispatchRemarks}
+              canEdit={canEdit}
+            />
+          )}
         </TableCell>
 
         <TableCell onClick={(e) => e.stopPropagation()}>
@@ -206,7 +228,25 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEd
             </TableCell>
 
             <TableCell>
-              <StatusBadge status={inv.status} />
+              <StatusBadge status={inv.status} cancellationReason={inv.cancellationReason} />
+            </TableCell>
+
+            <TableCell onClick={(e) => e.stopPropagation()}>
+              <RemarkCell
+                invoiceId={inv._id}
+                field="beforeDispatchRemarks"
+                initialValue={inv.beforeDispatchRemarks}
+                canEdit={canEdit}
+              />
+            </TableCell>
+
+            <TableCell onClick={(e) => e.stopPropagation()}>
+              <RemarkCell
+                invoiceId={inv._id}
+                field="afterDispatchRemarks"
+                initialValue={inv.afterDispatchRemarks}
+                canEdit={canEdit}
+              />
             </TableCell>
 
             <TableCell onClick={(e) => e.stopPropagation()}>
@@ -240,6 +280,46 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEd
           </TableRow>
         ))}
     </>
+  );
+}
+
+function RemarkCell({ invoiceId, field, initialValue, canEdit }) {
+  const [value, setValue] = useState(initialValue || "");
+
+  useEffect(() => {
+    setValue(initialValue || "");
+  }, [initialValue]);
+
+  const handleBlur = async () => {
+    if (value === (initialValue || "")) return;
+    try {
+      const API_BASE_URL = import.meta.env?.VITE_API_URL || "http://localhost:5000/api";
+      await fetch(`${API_BASE_URL}/invoices/${invoiceId}/remarks`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ [field]: value }),
+      });
+    } catch (err) {
+      console.error("Failed to save remark", err);
+    }
+  };
+
+  if (!canEdit) {
+    return <span className="text-xs text-slate-600">{value || "—"}</span>;
+  }
+
+  return (
+    <div onClick={(e) => e.stopPropagation()} className="min-w-[130px]">
+      <input
+        type="text"
+        placeholder="Add remark..."
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleBlur}
+        className="w-full text-xs px-2 py-1 bg-slate-50 hover:bg-white border border-slate-200 hover:border-slate-300 focus:border-blue-500 focus:bg-white rounded outline-none transition-colors"
+      />
+    </div>
   );
 }
 

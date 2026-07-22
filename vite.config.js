@@ -21,6 +21,13 @@ export default defineConfig({
     include: ["react", "react-dom"],
   },
 
-  // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+    },
+  },
   assetsInclude: ["**/*.svg", "**/*.csv"],
 });

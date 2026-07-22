@@ -115,12 +115,12 @@ export function InvoicesPage() {
       const result = await res.json();
 
       if (!res.ok) {
-        throw new Error(result.message);
+        throw new Error(result?.message || `Failed to fetch invoices (${res.status})`);
       }
 
       setInvoices(result.data || []);
-      setTotal(result.pagination.total || 0);
-      setTotalPages(result.pagination.totalPages || 1);
+      setTotal(result.pagination?.total || 0);
+      setTotalPages(result.pagination?.totalPages || 1);
     } catch (err) {
       setError(err.message);
     } finally {

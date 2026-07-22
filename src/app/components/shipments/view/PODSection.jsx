@@ -1,27 +1,8 @@
 import React, { useState, useRef } from "react";
-import { FileCheck, Clock, Camera, FileText, Image, Eye, Download, Upload, X, CheckCircle2, CircleDot, Circle, Disc, MapPin, Hash, Weight, ChevronRight } from "lucide-react";
+import { FileCheck, Clock, Camera, FileText, Image, Eye, Printer, Upload, X, CheckCircle2, CircleDot, Circle, Disc, MapPin, Hash, Weight, ChevronRight } from "lucide-react";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { SectionLabel, DetailField } from "../ui/ShipmentUIComponents";
-
-const loadHtml2Pdf = () => {
-  return new Promise((resolve, reject) => {
-    if (window.html2pdf) {
-      resolve(window.html2pdf);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-    script.crossOrigin = "anonymous";
-    script.onload = () => {
-      resolve(window.html2pdf);
-    };
-    script.onerror = (err) => {
-      reject(new Error("Failed to load html2pdf library"));
-    };
-    document.body.appendChild(script);
-  });
-};
 
 export function PODSection({
   shipment,
@@ -83,7 +64,7 @@ function DestinationPODCard({
 
   const lrDisplay = dest.lrNumber || `LR-TEMP-${index + 1}`;
 
-  const handleDownloadLR = () => {
+  const handlePrintLR = () => {
     if (!shipment) return;
     const currentDate = new Date().toLocaleDateString("en-GB", {
       day: "2-digit",
@@ -92,6 +73,7 @@ function DestinationPODCard({
     }).replace(/\//g, "-");
 
     const vehicleNo = shipment.vehicleNumber || (typeof shipment.vehicleId === "object" ? shipment.vehicleId?.vehicleNo : "—");
+    const driverName = shipment.driverName || (typeof shipment.driverId === "object" ? shipment.driverId?.name : "");
     const fromAddress = "Kottayam CFA (CEAT LTD) GNXT Power Corp, Kottayam";
     const toAddress = `${dest.customerName || "—"}, ${dest.deliveryLocation || "—"}`;
     const invoices = (dest.invoiceIds || []).filter(inv => typeof inv === "object" && inv !== null);
@@ -143,8 +125,7 @@ function DestinationPODCard({
         };
       });
 
-      const pageIndicator = totalPages > 1 ? ` (Page ${pageIndex + 1} of ${totalPages})` : "";
-      const displayLR = `${lrDisplay}${pageIndicator}`;
+      const displayLR = lrDisplay;
       const spacingClass = pageInvoices.length > 7 ? "compact" : "spacious";
 
       const renderCopy = () => `
@@ -215,6 +196,7 @@ function DestinationPODCard({
             </div>
             <div class="lr-sig-box">
               <div class="lr-sig-label">DRIVER NAME & SIGNATURE</div>
+              ${driverName ? `<div class="lr-sig-driver-name">${driverName}</div>` : ''}
               <div class="lr-sig-dotted-line"></div>
             </div>
             <div class="lr-sig-box">
@@ -243,6 +225,18 @@ function DestinationPODCard({
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
           
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+
+          @media print {
+            body {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          }
+
           body {
             margin: 0 !important;
             padding: 0 !important;
@@ -463,6 +457,15 @@ function DestinationPODCard({
             line-height: 1.2;
           }
 
+          .lr-sig-driver-name {
+            font-weight: 700;
+            font-size: calc(var(--font-sig) + 2px);
+            text-transform: uppercase;
+            color: #000;
+            margin: 2px 0;
+            text-align: center;
+          }
+
           .lr-sig-dotted-line {
             border-bottom: 2.5px dotted #000;
             width: 90%;
@@ -481,26 +484,44 @@ function DestinationPODCard({
       </div>
     `;
 
-    loadHtml2Pdf().then((html2pdf) => {
-      const opt = {
-        margin: 0,
-        filename: `LR-${lrDisplay}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-      };
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
 
-      html2pdf()
-        .from(html)
-        .set(opt)
-        .save()
-        .catch((err) => {
-          console.error("PDF generation error:", err);
-        });
-    }).catch((err) => {
-      alert("Failed to load PDF library. Please check your internet connection.");
-      console.error(err);
-    });
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    iframe.contentWindow.focus();
+
+    const triggerPrint = () => {
+      try {
+        iframe.contentWindow.print();
+      } catch (err) {
+        console.error("Print error:", err);
+      } finally {
+        setTimeout(() => {
+          if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+          }
+        }, 1000);
+      }
+    };
+
+    iframe.contentWindow.onload = triggerPrint;
+
+    // Fallback if onload does not trigger
+    setTimeout(() => {
+      if (iframe.parentNode) {
+        triggerPrint();
+      }
+    }, 500);
   };
 
   const handleSave = async () => {
@@ -532,10 +553,10 @@ function DestinationPODCard({
             <span className="text-xs font-semibold text-[#1d4ed8]">Destination {index + 1} of {totalCount}</span>
             <span className="ml-2.5 text-xs text-muted-foreground font-semibold">LR: {lrDisplay}</span>
             <button
-              onClick={handleDownloadLR}
+              onClick={handlePrintLR}
               className="ml-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors cursor-pointer border border-blue-200"
             >
-              <Download className="w-3 h-3" /> Download LR
+              <Printer className="w-3 h-3" /> Print LR
             </button>
           </div>
         </div>

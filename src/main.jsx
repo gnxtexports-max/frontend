@@ -132,6 +132,41 @@ function getActionName(method, url) {
   return action;
 }
 
+// Helper to safely wrap fetch Response to prevent JSON syntax errors when server returns HTML/404 pages
+function wrapSafeResponse(response) {
+  if (!response || typeof response.json !== "function") return response;
+  const originalJson = response.json.bind(response);
+  const originalText = response.text ? response.text.bind(response) : null;
+
+  response.json = async function () {
+    try {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        const text = originalText ? await originalText() : "";
+        if (text.trim().startsWith("<") || text.includes("<!DOCTYPE")) {
+          return {
+            success: false,
+            message: `Route not found or server returned HTML (${response.status} ${response.statusText || ""})`.trim()
+          };
+        }
+        try {
+          return JSON.parse(text);
+        } catch {
+          return { success: false, message: `Server error (${response.status})` };
+        }
+      }
+      return await originalJson();
+    } catch (err) {
+      console.warn("[SafeFetch] Failed to parse JSON response:", err.message);
+      return {
+        success: false,
+        message: `Invalid JSON response from server (${response.status || "Error"})`
+      };
+    }
+  };
+  return response;
+}
+
 // Save the original fetch to bypass interceptor when fetching from network
 const originalFetch = window.fetch;
 
@@ -163,7 +198,7 @@ window.fetch = async (url, options = {}) => {
     if (options.headers && !(options.headers instanceof Headers)) {
       delete options.headers["X-Bypass-Offline"];
     }
-    return originalFetch(url, options);
+    return originalFetch(url, options).then(wrapSafeResponse);
   }
 
   // Handle GET Requests — Network-First Strategy
@@ -179,13 +214,24 @@ window.fetch = async (url, options = {}) => {
           const contentType = response.headers.get("content-type") || "";
           if (contentType.includes("application/json")) {
             const clone = response.clone();
-            const json = await clone.json();
-            json._cachedAt = Date.now();
-            await setCache(urlString, json);
+            const json = await clone.json().catch(() => null);
+            if (json) {
+              json._cachedAt = Date.now();
+              await setCache(urlString, json);
+            }
           }
-          return response;
+          return wrapSafeResponse(response);
         }
-        return response;
+        // If response is not ok (e.g. 404 or HTML fallback), check IndexedDB cache first
+        const cachedFallback = await getCache(urlString);
+        if (cachedFallback) {
+          return new Response(JSON.stringify(cachedFallback), {
+            status: 200,
+            statusText: "OK",
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+        return wrapSafeResponse(response);
       } catch (err) {
         console.warn("[Fetch Interceptor] GET network failed, trying cache:", urlString);
         // Fallback to cache if network request throws (e.g. server unreachable while online)

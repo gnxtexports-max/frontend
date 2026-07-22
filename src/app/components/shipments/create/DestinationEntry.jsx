@@ -475,13 +475,23 @@ export function DestinationEntry({
                     {selectedPlant}
                   </span>
                 </h4>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlant(null)}
-                  className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  ✕ cancel
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSavePlantData}
+                    className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-2.5 py-1.5 transition-colors leading-none flex items-center gap-1"
+                  >
+                    <Save className="w-3 h-3 text-emerald-700" />
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlant(null)}
+                    className="text-[10px] font-medium text-slate-400 hover:text-slate-600 transition-colors border border-slate-200 rounded-lg px-2.5 py-1.5 leading-none"
+                  >
+                    ✕ cancel
+                  </button>
+                </div>
               </div>
 
               {[
@@ -531,15 +541,6 @@ export function DestinationEntry({
                 />
               </div>
 
-              {/* Save button */}
-              <Button
-                type="button"
-                onClick={handleSavePlantData}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                Save for Plant {selectedPlant}
-              </Button>
             </>
           ) : (
             /* ── SUMMARY MODE: no plant selected ── */

@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 
-export function StatusBadge({ status, isDelayed }) {
+export function StatusBadge({ status, isDelayed, cancellationReason }) {
   const baseStyle =
     isDelayed && status === "Pending"
       ? "bg-red-50 text-red-700 border border-red-200" // special style for delayed
@@ -23,6 +23,27 @@ export function StatusBadge({ status, isDelayed }) {
       {status === "Pending" ? "Awaiting Shipment" : status}
     </div>
   );
+
+  if (status === "Cancelled" && cancellationReason) {
+    return (
+      <TooltipProvider>
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <div className="cursor-help">{badge}</div>
+          </TooltipTrigger>
+          <TooltipContent className="bg-amber-50 border border-amber-200 text-amber-900 shadow-md px-3 py-2 max-w-[280px]">
+            <p className="text-xs font-bold flex items-center gap-1.5 text-amber-800">
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+              Cancellation Reason:
+            </p>
+            <p className="text-xs text-amber-950 mt-1 whitespace-pre-wrap">
+              {cancellationReason}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   if (isDelayed && status === "Pending") {
     return (

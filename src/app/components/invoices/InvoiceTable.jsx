@@ -47,6 +47,8 @@ export function InvoiceTable({
               <TableHead>Qty</TableHead>
               <TableHead>Weight</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Before Dispatch Remarks</TableHead>
+              <TableHead>After Dispatch Remarks</TableHead>
               <TableHead>Action</TableHead>
             </TableRow>
           </TableHeader>
@@ -54,7 +56,7 @@ export function InvoiceTable({
             {invoices.length === 0 && !loading ? (
               <TableRow>
                 <TableCell
-                  colSpan={13}
+                  colSpan={15}
                   className="h-[300px] text-center"
                 >
                   No invoices found

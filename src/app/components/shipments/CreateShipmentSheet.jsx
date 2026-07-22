@@ -216,6 +216,11 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
 
   const handleCreate = async () => {
     setError("");
+    const totalInvoicesSelected = dealerEntries.reduce((sum, e) => sum + (e.invoiceIds?.length || 0), 0);
+    if (totalInvoicesSelected > 9) {
+      setError(`Cannot add more than 9 invoices to a shipment. Currently selected: ${totalInvoicesSelected} invoices.`);
+      return;
+    }
     for (const [i, e] of dealerEntries.entries()) {
       if (!e.plantReferenceNumber) {
         setError(`Destination ${i + 1}: Please select a plant number`);
@@ -301,13 +306,25 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
               {isEditMode ? "Update the shipment details below" : "Fill in the details to dispatch a new tyre shipment"}
             </SheetDescription>
           </div>
-          <div className="bg-[#f0f4ff] border border-[#c7d7fe] rounded-lg px-3 py-1.5">
-            <p className="text-[10px] text-[#4b6cb7] tracking-wide uppercase">Shipment ID</p>
-            <p className="text-sm text-[#1d4ed8] tracking-tight">
-              {isEditMode
-                ? editShipment.shipmentId
-                : (createdShipment?.shipmentId ?? nextIds?.nextShipmentId ?? `SHP-${new Date().getFullYear()}-…`)}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className={`border rounded-lg px-3 py-1.5 ${
+              dealerEntries.reduce((s, e) => s + (e.invoiceIds?.length || 0), 0) > 9
+                ? "bg-red-50 border-red-200 text-red-700 font-bold"
+                : "bg-[#f0f4ff] border-[#c7d7fe] text-[#1d4ed8]"
+            }`}>
+              <p className="text-[10px] uppercase tracking-wide opacity-80">Selected Invoices</p>
+              <p className="text-xs font-bold">
+                {dealerEntries.reduce((s, e) => s + (e.invoiceIds?.length || 0), 0)} / 9 max
+              </p>
+            </div>
+            <div className="bg-[#f0f4ff] border border-[#c7d7fe] rounded-lg px-3 py-1.5">
+              <p className="text-[10px] text-[#4b6cb7] tracking-wide uppercase">Shipment ID</p>
+              <p className="text-sm text-[#1d4ed8] tracking-tight">
+                {isEditMode
+                  ? editShipment.shipmentId
+                  : (createdShipment?.shipmentId ?? nextIds?.nextShipmentId ?? `SHP-${new Date().getFullYear()}-…`)}
+              </p>
+            </div>
           </div>
         </div>
 
