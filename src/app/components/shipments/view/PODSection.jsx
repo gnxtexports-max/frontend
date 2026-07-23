@@ -501,17 +501,27 @@ function DestinationPODCard({
 
       iframe.contentWindow.focus();
 
+      let hasTriggered = false;
+
+      const cleanup = () => {
+        if (iframe.parentNode) {
+          document.body.removeChild(iframe);
+        }
+      };
+
       const triggerPrint = () => {
+        if (hasTriggered) return;
+        hasTriggered = true;
+
         try {
+          iframe.contentWindow.addEventListener("afterprint", cleanup);
           iframe.contentWindow.print();
         } catch (err) {
           console.error("Print error:", err);
+          cleanup();
         } finally {
-          setTimeout(() => {
-            if (iframe.parentNode) {
-              document.body.removeChild(iframe);
-            }
-          }, 1000);
+          // Fallback cleanup in case afterprint does not fire
+          setTimeout(cleanup, 10000);
         }
       };
 
@@ -519,9 +529,7 @@ function DestinationPODCard({
 
       // Fallback if onload does not trigger
       setTimeout(() => {
-        if (iframe.parentNode) {
-          triggerPrint();
-        }
+        triggerPrint();
       }, 500);
     }
 
