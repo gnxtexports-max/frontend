@@ -125,7 +125,7 @@ function DestinationPODCard({
         };
       });
 
-      const displayLR = lrDisplay;
+      const displayLR = totalPages > 1 ? `${lrDisplay} (Pg ${pageIndex + 1}/${totalPages})` : lrDisplay;
       const spacingClass = pageInvoices.length > 7 ? "compact" : "spacious";
 
       const renderCopy = () => `
@@ -156,7 +156,7 @@ function DestinationPODCard({
             <table class="lr-table">
               <thead>
                 <tr>
-                  <th colspan="6" class="table-title">INVOICE DETAILS</th>
+                  <th colspan="6" class="table-title">INVOICE DETAILS ${totalPages > 1 ? `(PAGE ${pageIndex + 1} OF ${totalPages})` : ""}</th>
                 </tr>
                 <tr>
                   <th>INVOICE NO</th>
@@ -179,7 +179,7 @@ function DestinationPODCard({
                   </tr>
                 `).join("")}
                 <tr class="total-row">
-                  <td colspan="2">TOTAL</td>
+                  <td colspan="2">TOTAL ${totalPages > 1 ? `(PAGE ${pageIndex + 1})` : ""}</td>
                   <td>${totalWeight.toFixed(2)} kg</td>
                   <td>${totalTyre}</td>
                   <td>${totalTube}</td>
