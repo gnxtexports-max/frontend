@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { FileCheck, Clock, Camera, FileText, Image, Eye, Printer, Upload, X, CheckCircle2, CircleDot, Circle, Disc, MapPin, Hash, Weight, ChevronRight } from "lucide-react";
+import { FileCheck, Clock, Camera, FileText, Image, Eye, Printer, Upload, X, CheckCircle2, CircleDot, Circle, Disc, MapPin, Hash, Weight, ChevronRight, Download } from "lucide-react";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { SectionLabel, DetailField } from "../ui/ShipmentUIComponents";
@@ -64,7 +64,7 @@ function DestinationPODCard({
 
   const lrDisplay = dest.lrNumber || `LR-TEMP-${index + 1}`;
 
-  const handlePrintLR = () => {
+  const handlePrintOrDownloadLR = (action = "print") => {
     if (!shipment) return;
     const currentDate = new Date().toLocaleDateString("en-GB", {
       day: "2-digit",
@@ -484,69 +484,75 @@ function DestinationPODCard({
       </div>
     `;
 
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
+    if (action === "print") {
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
 
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(html);
+      doc.close();
 
-    iframe.contentWindow.focus();
+      iframe.contentWindow.focus();
 
-    const triggerPrint = () => {
-      try {
-        iframe.contentWindow.print();
-      } catch (err) {
-        console.error("Print error:", err);
-      } finally {
-        setTimeout(() => {
-          if (iframe.parentNode) {
-            document.body.removeChild(iframe);
-          }
-        }, 1000);
-      }
-    };
-
-    iframe.contentWindow.onload = triggerPrint;
-
-    // Fallback if onload does not trigger
-    setTimeout(() => {
-      if (iframe.parentNode) {
-        triggerPrint();
-      }
-    }, 500);
-
-    // Auto-download PDF in addition to printing
-    try {
-      const opt = {
-        margin: 0,
-        filename: `LR_${lrDisplay}_${currentDate}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+      const triggerPrint = () => {
+        try {
+          iframe.contentWindow.print();
+        } catch (err) {
+          console.error("Print error:", err);
+        } finally {
+          setTimeout(() => {
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          }, 1000);
+        }
       };
 
-      const element = document.createElement("div");
-      element.innerHTML = html;
-      element.style.width = "210mm"; // Fix rendering width to A4 dimensions
+      iframe.contentWindow.onload = triggerPrint;
 
-      import("html2pdf.js").then((mod) => {
-        const html2pdf = mod.default;
-        html2pdf().set(opt).from(element).save();
-      }).catch((e) => {
-        console.error("PDF generation library failed to load:", e);
-      });
-    } catch (pdfErr) {
-      console.error("Failed to generate PDF download:", pdfErr);
+      // Fallback if onload does not trigger
+      setTimeout(() => {
+        if (iframe.parentNode) {
+          triggerPrint();
+        }
+      }, 500);
+    }
+
+    if (action === "download") {
+      try {
+        const opt = {
+          margin: 0,
+          filename: `LR_${lrDisplay}_${currentDate}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+        };
+
+        const element = document.createElement("div");
+        element.innerHTML = html;
+        element.style.width = "210mm"; // Fix rendering width to A4 dimensions
+
+        import("html2pdf.js").then((mod) => {
+          const html2pdf = mod.default;
+          html2pdf().set(opt).from(element).save();
+        }).catch((e) => {
+          console.error("PDF generation library failed to load:", e);
+        });
+      } catch (pdfErr) {
+        console.error("Failed to generate PDF download:", pdfErr);
+      }
     }
   };
+
+  const handlePrintLR = () => handlePrintOrDownloadLR("print");
+  const handleDownloadLR = () => handlePrintOrDownloadLR("download");
 
   const handleSave = async () => {
     setUploading(true);
@@ -581,6 +587,12 @@ function DestinationPODCard({
               className="ml-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors cursor-pointer border border-blue-200"
             >
               <Printer className="w-3 h-3" /> Print LR
+            </button>
+            <button
+              onClick={handleDownloadLR}
+              className="ml-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-[#1d4ed8] hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors cursor-pointer border border-blue-200"
+            >
+              <Download className="w-3 h-3" /> Download LR
             </button>
           </div>
         </div>
