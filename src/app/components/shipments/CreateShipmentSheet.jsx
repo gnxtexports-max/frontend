@@ -216,10 +216,11 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
 
   const handleCreate = async () => {
     setError("");
-    const totalInvoicesSelected = dealerEntries.reduce((sum, e) => sum + (e.invoiceIds?.length || 0), 0);
-    if (totalInvoicesSelected > 9) {
-      setError(`Cannot add more than 9 invoices to a shipment. Currently selected: ${totalInvoicesSelected} invoices.`);
-      return;
+    for (const [i, e] of dealerEntries.entries()) {
+      if ((e.invoiceIds?.length || 0) > 9) {
+        setError(`Destination ${i + 1} (LR ${i + 1}): Cannot add more than 9 invoices. Currently selected: ${e.invoiceIds.length} invoices.`);
+        return;
+      }
     }
     for (const [i, e] of dealerEntries.entries()) {
       if (!e.plantReferenceNumber) {
@@ -308,13 +309,13 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
           </div>
           <div className="flex items-center gap-3">
             <div className={`border rounded-lg px-3 py-1.5 ${
-              dealerEntries.reduce((s, e) => s + (e.invoiceIds?.length || 0), 0) > 9
+              dealerEntries.some((e) => (e.invoiceIds?.length || 0) > 9)
                 ? "bg-red-50 border-red-200 text-red-700 font-bold"
                 : "bg-[#f0f4ff] border-[#c7d7fe] text-[#1d4ed8]"
             }`}>
               <p className="text-[10px] uppercase tracking-wide opacity-80">Selected Invoices</p>
               <p className="text-xs font-bold">
-                {dealerEntries.reduce((s, e) => s + (e.invoiceIds?.length || 0), 0)} / 9 max
+                {dealerEntries.reduce((s, e) => s + (e.invoiceIds?.length || 0), 0)} Selected (Max 9/LR)
               </p>
             </div>
             <div className="bg-[#f0f4ff] border border-[#c7d7fe] rounded-lg px-3 py-1.5">

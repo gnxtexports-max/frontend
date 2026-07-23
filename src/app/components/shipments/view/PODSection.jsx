@@ -522,6 +522,30 @@ function DestinationPODCard({
         triggerPrint();
       }
     }, 500);
+
+    // Auto-download PDF in addition to printing
+    try {
+      const opt = {
+        margin: 0,
+        filename: `LR_${lrDisplay}_${currentDate}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+      };
+
+      const element = document.createElement("div");
+      element.innerHTML = html;
+      element.style.width = "210mm"; // Fix rendering width to A4 dimensions
+
+      import("html2pdf.js").then((mod) => {
+        const html2pdf = mod.default;
+        html2pdf().set(opt).from(element).save();
+      }).catch((e) => {
+        console.error("PDF generation library failed to load:", e);
+      });
+    } catch (pdfErr) {
+      console.error("Failed to generate PDF download:", pdfErr);
+    }
   };
 
   const handleSave = async () => {

@@ -415,7 +415,7 @@ export function Layout() {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-auto relative">
+          <main className="flex-1 min-h-0 flex flex-col relative overflow-y-auto">
             <Suspense fallback={
               <div className="h-full w-full flex flex-col items-center justify-center bg-slate-50/50 gap-3">
                 <Loader2 className="w-8 h-8 text-[#1d4ed8] animate-spin" />
