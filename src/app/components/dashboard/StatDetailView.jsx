@@ -67,7 +67,8 @@ export function StatDetailView({
   onView,
 }) {
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-6 h-full flex flex-col">
+    /* Removed max-w-[1600px] & mx-auto to ensure full width usage after sidebar with responsive 24px-32px (p-6 md:p-8) padding */
+    <div className="p-6 md:p-8 w-full space-y-6 h-full flex flex-col">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={onBack} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
@@ -79,70 +80,73 @@ export function StatDetailView({
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[280px] max-w-md">
+        {/* Responsive search bar width using max-w-lg w-full instead of restrictive fixed width */}
+        <div className="relative flex-1 min-w-[280px] max-w-lg w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search by Shipment ID, Driver, Vehicle..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9 bg-white border-border" />
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex-1 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-auto">
-          <Table>
+      {/* Table container expanding to full width with overflow-x-auto for horizontal responsiveness */}
+      <div className="bg-white rounded-lg border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex-1 overflow-hidden flex flex-col w-full">
+        <div className="flex-1 overflow-x-auto overflow-y-auto w-full">
+          <Table className="w-full min-w-full">
             <TableHeader>
               <TableRow className="hover:bg-transparent bg-[#fafbfc]">
                 {activeStatView === "Active Shipments" && (
                   <>
-                    <TableHead className="pl-5 w-[150px]">Shipment ID</TableHead>
-                    <TableHead className="w-[200px]">Dealer & Location</TableHead>
-                    <TableHead className="w-[150px]">Weight</TableHead>
-                    <TableHead className="w-[160px]">Driver Info</TableHead>
-                    <TableHead className="w-[160px]">Vehicle Info</TableHead>
-                    <TableHead className="w-[110px]">Date</TableHead>
-                    <TableHead className="w-[110px]">POD</TableHead>
-                    <TableHead className="w-[60px] pr-5 text-center">View</TableHead>
+                    <TableHead className="pl-5 w-[14%]">Shipment ID</TableHead>
+                    <TableHead className="w-[20%]">Dealer & Location</TableHead>
+                    <TableHead className="w-[12%]">Weight</TableHead>
+                    <TableHead className="w-[14%]">Driver Info</TableHead>
+                    <TableHead className="w-[14%]">Vehicle Info</TableHead>
+                    <TableHead className="w-[10%]">Date</TableHead>
+                    <TableHead className="w-[10%]">POD</TableHead>
+                    <TableHead className="w-[6%] pr-5 text-center">View</TableHead>
                   </>
                 )}
                 {activeStatView === "Pending Dispatch" && (
                   <>
-                    <TableHead className="pl-5">Shipment ID</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Weight</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Planned Vehicle</TableHead>
-                    <TableHead className="pr-5">Dispatch Status</TableHead>
+                    <TableHead className="pl-5 w-[15%]">Shipment ID</TableHead>
+                    <TableHead className="w-[12%]">Date</TableHead>
+                    <TableHead className="w-[23%]">Customer</TableHead>
+                    <TableHead className="w-[14%]">Location</TableHead>
+                    <TableHead className="w-[10%]">Weight</TableHead>
+                    <TableHead className="w-[8%]">Quantity</TableHead>
+                    <TableHead className="w-[10%]">Planned Vehicle</TableHead>
+                    <TableHead className="w-[8%] pr-5">Dispatch Status</TableHead>
                   </>
                 )}
                 {activeStatView === "Cancelled Invoices" && (
                   <>
-                    <TableHead className="pl-5">Shipment ID</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead className="pr-5">Status</TableHead>
+                    <TableHead className="pl-5 w-[18%]">Shipment ID</TableHead>
+                    <TableHead className="w-[14%]">Date</TableHead>
+                    <TableHead className="w-[32%]">Customer</TableHead>
+                    <TableHead className="w-[22%]">Location</TableHead>
+                    <TableHead className="w-[14%] pr-5">Status</TableHead>
                   </>
                 )}
                 {activeStatView === "Deliveries Today" && (
                   <>
-                    <TableHead className="pl-5">Shipment ID</TableHead>
-                    <TableHead>Dealer</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Delivered Time</TableHead>
-                    <TableHead>Driver</TableHead>
-                    <TableHead>Vehicle</TableHead>
-                    <TableHead className="pr-5">POD Received</TableHead>
+                    <TableHead className="pl-5 w-[14%]">Shipment ID</TableHead>
+                    <TableHead className="w-[20%]">Dealer</TableHead>
+                    <TableHead className="w-[14%]">Location</TableHead>
+                    <TableHead className="w-[11%]">Weight</TableHead>
+                    <TableHead className="w-[12%]">Delivered Time</TableHead>
+                    <TableHead className="w-[11%]">Driver</TableHead>
+                    <TableHead className="w-[9%]">Vehicle</TableHead>
+                    <TableHead className="w-[9%] pr-5">POD Received</TableHead>
                   </>
                 )}
                 {!["Active Shipments", "Pending Dispatch", "Cancelled Invoices", "Deliveries Today"].includes(activeStatView) && (
                   <>
-                    <TableHead className="pl-5">Shipment ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Vehicle</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="pr-5">Info</TableHead>
+                    <TableHead className="pl-5 w-[15%]">Shipment ID</TableHead>
+                    <TableHead className="w-[20%]">Name</TableHead>
+                    <TableHead className="w-[18%]">Location</TableHead>
+                    <TableHead className="w-[12%]">Date</TableHead>
+                    <TableHead className="w-[13%]">Vehicle</TableHead>
+                    <TableHead className="w-[12%]">Status</TableHead>
+                    <TableHead className="w-[10%] pr-5">Info</TableHead>
                   </>
                 )}
               </TableRow>
@@ -150,8 +154,8 @@ export function StatDetailView({
             <TableBody>
               {tableData.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={8} className="p-0 border-none bg-slate-50/50">
-                    <div className="w-full flex flex-col items-center justify-center py-10 px-6">
+                  <TableCell colSpan={10} className="p-0 border-none bg-slate-50/50">
+                    <div className="w-full flex flex-col items-center justify-center py-12 px-6">
                       <h4 className="text-sm font-semibold text-foreground mb-1">No Data Available</h4>
                       <p className="text-sm text-muted-foreground max-w-sm text-center">
                         Please adjust your filters or select a different stat card above.
@@ -238,11 +242,13 @@ export function StatDetailView({
                     );
                   }
                   if (activeStatView === "Deliveries Today") {
+                    const weightVal = s?.totalWeightKg ?? item.weight;
                     return (
                       <TableRow key={idx} className="group cursor-default">
                         <TableCell className="pl-5"><span className="font-medium text-[#1d4ed8]">{item.id || "—"}</span></TableCell>
                         <TableCell className="text-sm font-semibold text-slate-800">{item.customer || item.destination || "—"}</TableCell>
                         <TableCell className="text-sm text-slate-600">{item.location || s?.destinations?.[0]?.deliveryLocation || "—"}</TableCell>
+                        <TableCell><span className="text-sm text-foreground">{kg(weightVal)}</span></TableCell>
                         <TableCell><span className="text-sm text-muted-foreground">{formatTime(s?.deliveryDate)}</span></TableCell>
                         <TableCell><p className="text-sm text-foreground">{item.driver || "—"}</p></TableCell>
                         <TableCell><span className="text-sm text-foreground">{item.vehicle || "—"}</span></TableCell>

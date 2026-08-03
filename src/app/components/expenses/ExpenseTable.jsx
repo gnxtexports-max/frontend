@@ -48,9 +48,22 @@ function SortableHead({ label, field, current, dir, onSort, className = "" }) {
 
 function ExpenseTypeBadge({ type }) {
   const styles = {
+    // Dispatch Types
     Fuel: "bg-orange-50 text-orange-700 border-orange-200",
     Toll: "bg-violet-50 text-violet-700 border-violet-200",
-    Maintenance: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    Driver: "bg-amber-50 text-amber-700 border-amber-200",
+    "Market Vehicle": "bg-emerald-50 text-emerald-700 border-emerald-200",
+    Overtime: "bg-blue-50 text-blue-700 border-blue-200",
+    "MVD Penalty": "bg-red-50 text-red-700 border-red-200",
+    // Maintenance Types
+    Insurance: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    Pollution: "bg-teal-50 text-teal-700 border-teal-200",
+    Fitness: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    Tax: "bg-rose-50 text-rose-700 border-rose-200",
+    "Tyre Purchase": "bg-purple-50 text-purple-700 border-purple-200",
+    Repair: "bg-pink-50 text-pink-700 border-pink-200",
+    // Fallbacks
+    Maintenance: "bg-purple-50 text-purple-700 border-purple-200",
     "Loading/Unloading": "bg-blue-50 text-blue-700 border-blue-200",
     "Driver Allowance": "bg-amber-50 text-amber-700 border-amber-200",
     Miscellaneous: "bg-gray-50 text-gray-600 border-gray-200",
@@ -113,7 +126,7 @@ export function ExpenseTable({
               )}
               <TableHead className="w-[50px]"></TableHead>
               <SortableHead
-                label="Trip / Shipment ID"
+                label="Trip / Vehicle ID"
                 field="tripId"
                 current={sortField}
                 dir={sortDir}
@@ -149,7 +162,7 @@ export function ExpenseTable({
                 onSort={toggleSort}
               />
               <SortableHead
-                label="Total Trip Expense"
+                label="Total Expense"
                 field="amount"
                 current={sortField}
                 dir={sortDir}
@@ -165,7 +178,7 @@ export function ExpenseTable({
                 <TableCell colSpan={selectMode ? 9 : 8} className="text-center py-16">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Wallet className="w-8 h-8 opacity-30" />
-                    <p className="text-sm font-medium">No trip expenses recorded</p>
+                    <p className="text-sm font-medium">No expenses recorded</p>
                     <p className="text-xs">Create an expense record to begin tracking costs.</p>
                   </div>
                 </TableCell>
@@ -179,7 +192,7 @@ export function ExpenseTable({
                   <>
                     {/* Parent Group Row */}
                     <TableRow
-                      key={tripGroup.tripId}
+                      key={tripGroup.tripId || `trip-${idx}`}
                       className={`transition-colors hover:bg-slate-50/50 cursor-pointer ${isExpanded ? "bg-[#f8faff] border-b-0" : idx % 2 === 1 ? "bg-[#fbfbfc]" : ""
                         }`}
                       onClick={() => toggleTrip(tripGroup.tripId)}
@@ -210,9 +223,21 @@ export function ExpenseTable({
                       </TableCell>
 
                       <TableCell className="text-sm font-semibold text-foreground p-3">
-                        <span className="bg-[#f0f4ff] text-[#1d4ed8] px-2 py-0.5 rounded text-xs tracking-tight font-semibold">
-                          {tripGroup.tripId || "Manual Entry"}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="bg-[#f0f4ff] text-[#1d4ed8] px-2 py-0.5 rounded text-xs tracking-tight font-semibold">
+                            {tripGroup.tripId || "Vehicle Expense"}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] px-1.5 py-0 uppercase ${
+                              tripGroup.category === "maintenance"
+                                ? "bg-purple-50 text-purple-700 border-purple-200"
+                                : "bg-blue-50 text-blue-700 border-blue-200"
+                            }`}
+                          >
+                            {tripGroup.category === "maintenance" ? "Maintenance" : "Dispatch"}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-foreground p-3 font-medium">
                         {tripGroup.driverName}

@@ -135,6 +135,7 @@ export function DashboardPage() {
       ...s,
       customer: s.originalData?.destinations?.[0]?.customerName || s.customer,
       location: s.originalData?.destinations?.[0]?.deliveryLocation || s.location,
+      weight: s.originalData?.totalWeightKg ?? s.weight,
     }));
   } else if (activeStatView) {
     baseData = showHistory ? historicalShipments : currentShipments;
@@ -185,7 +186,8 @@ export function DashboardPage() {
           }}
         />
       ) : (
-        <div className="p-8 max-w-[1600px] mx-auto space-y-8">
+        /* Removed max-w-[1600px] & mx-auto to allow dashboard content to utilize full available width */
+        <div className="p-6 md:p-8 w-full space-y-8">
           <DashboardHeader />
           {loading ? (
             <div className="flex justify-center items-center h-64">

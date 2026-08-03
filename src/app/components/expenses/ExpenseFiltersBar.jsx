@@ -22,6 +22,8 @@ export function ExpenseFiltersBar({
   setFilterDate,
   dateOpen,
   setDateOpen,
+  filterCategory = "all",
+  setFilterCategory,
   filterShipment,
   setFilterShipment,
   filterVehicle,
@@ -57,8 +59,44 @@ export function ExpenseFiltersBar({
           />
         </div>
 
+        {/* Category Filter */}
+        <Select
+          value={filterCategory}
+          onValueChange={(v) => {
+            if (setFilterCategory) setFilterCategory(v);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="h-9 w-[160px] text-xs bg-white border-border font-medium">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="dispatch">Dispatch Expenses</SelectItem>
+            <SelectItem value="maintenance">Maintenance Expenses</SelectItem>
+          </SelectContent>
+        </Select>
 
-
+        {/* Expense Type Filter */}
+        <Select
+          value={filterExpenseType}
+          onValueChange={(v) => {
+            if (setFilterExpenseType) setFilterExpenseType(v);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="h-9 w-[150px] text-xs bg-white border-border">
+            <SelectValue placeholder="All Expense Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Expense Types</SelectItem>
+            {expenseTypes.filter(Boolean).map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* LR Number */}
         <Select
@@ -144,8 +182,6 @@ export function ExpenseFiltersBar({
           </SelectContent>
         </Select>
 
-
-
         {/* Clear Filters */}
         {hasActiveFilters && (
           <Button
@@ -158,7 +194,6 @@ export function ExpenseFiltersBar({
           </Button>
         )}
       </div>
-
     </div>
   );
 }

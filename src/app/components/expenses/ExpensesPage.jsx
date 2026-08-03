@@ -27,6 +27,7 @@ export function ExpensesPage() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
   const [filterShipment, setFilterShipment] = useState("all");
   const [filterVehicle, setFilterVehicle] = useState("all");
   const [filterDriver, setFilterDriver] = useState("all");
@@ -140,23 +141,30 @@ export function ExpensesPage() {
     return map;
   }, [shipments]);
 
-  // Filtered + sorted + grouped by Trip ID
+  // Filtered + sorted + grouped by Trip ID or Vehicle ID
   const processedData = useMemo(() => {
     let data = [...expenses];
 
-    // 1. Grouping by Trip ID (or fallback)
+    // 1. Grouping by Trip ID / Category / Vehicle ID
     const groupedMap = new Map();
     data.forEach((e) => {
-      const key = e.tripId || e.lrNumber || `manual-${e.driverName}-${e.vehicleId}`;
-      if (!groupedMap.has(key)) {
+      const isMaint = (e.category || "dispatch") === "maintenance";
+      const groupKey = isMaint
+        ? `maint-${e.vehicleNo || e.vehicleId || e._id}`
+        : (e.tripId || e.lrNumber || `dispatch-${e._id}`);
+
+      if (!groupedMap.has(groupKey)) {
         const totalWeightKg = shipmentWeightMap.get(e.tripId) || 0;
         const customerName = shipmentCustomerMap.get(e.tripId) || "N/A";
 
-        groupedMap.set(key, {
-          tripId: e.tripId || "No Trip ID",
+        groupedMap.set(groupKey, {
+          category: e.category || "dispatch",
+          tripId: isMaint
+            ? (e.vehicleNo || e.vehicleId || "Vehicle Expense")
+            : (e.tripId || e.lrNumber || "Shipment Expense"),
           lrNumber: e.lrNumber || "N/A",
-          driverName: e.driverName || "N/A",
-          vehicleId: e.vehicleId || "N/A",
+          driverName: e.driverName || (isMaint ? "N/A" : "Unknown"),
+          vehicleId: e.vehicleNo || e.vehicleId || "N/A",
           date: e.date,
           status: e.status || "Pending",
           paymentMode: e.paymentMode || "Cash",
@@ -167,7 +175,7 @@ export function ExpensesPage() {
         });
       }
 
-      const grp = groupedMap.get(key);
+      const grp = groupedMap.get(groupKey);
       grp.breakdown.push({
         ...e,
         amount: e.totalAmount !== undefined ? e.totalAmount : (e.amount || 0)
@@ -179,16 +187,18 @@ export function ExpensesPage() {
 
     // 2. Deep Filtering (filter breakdown items and recalculate totals)
     groupedData = groupedData.map(g => {
-      // Create a copy of the breakdown to filter
       let filteredBreakdown = [...g.breakdown];
+
+      if (filterCategory !== "all") {
+        filteredBreakdown = filteredBreakdown.filter(e => (e.category || "dispatch") === filterCategory);
+      }
 
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        // Only apply deep search filter if the group-level fields don't match
-        const groupMatches = g.tripId.toLowerCase().includes(q) ||
-          g.driverName.toLowerCase().includes(q) ||
-          g.vehicleId.toLowerCase().includes(q) ||
-          g.customerName.toLowerCase().includes(q);
+        const groupMatches = (g.tripId || "").toLowerCase().includes(q) ||
+          (g.driverName || "").toLowerCase().includes(q) ||
+          (g.vehicleId || "").toLowerCase().includes(q) ||
+          (g.customerName || "").toLowerCase().includes(q);
         if (!groupMatches) {
           filteredBreakdown = filteredBreakdown.filter(e => (e.lrNumber || "").toLowerCase().includes(q));
         }
@@ -234,6 +244,7 @@ export function ExpensesPage() {
       };
     }).filter(g => {
       // 3. Group-level filtering
+      if (filterCategory !== "all" && (g.category || "dispatch") !== filterCategory) return false;
       if (filterVehicle !== "all" && g.vehicleId !== filterVehicle) return false;
       if (filterDriver !== "all" && g.driverName !== filterDriver) return false;
       if (filterDealer !== "all") {
@@ -241,7 +252,6 @@ export function ExpensesPage() {
         if (!parts.includes(filterDealer)) return false;
       }
 
-      // Keep group only if it has matching breakdown items or matches all group filters
       return g.breakdown.length > 0;
     });
 
@@ -260,6 +270,7 @@ export function ExpensesPage() {
     return groupedData;
   }, [
     searchQuery,
+    filterCategory,
     filterShipment,
     filterVehicle,
     filterDriver,
@@ -281,6 +292,12 @@ export function ExpensesPage() {
 
   // Summary calculations
   const totalExpenses = expenses.reduce((s, e) => s + (e.totalAmount !== undefined ? e.totalAmount : (e.amount || 0)), 0);
+  const dispatchTotal = expenses
+    .filter(e => (e.category || "dispatch") === "dispatch")
+    .reduce((s, e) => s + (e.totalAmount !== undefined ? e.totalAmount : (e.amount || 0)), 0);
+  const maintenanceTotal = expenses
+    .filter(e => e.category === "maintenance")
+    .reduce((s, e) => s + (e.totalAmount !== undefined ? e.totalAmount : (e.amount || 0)), 0);
 
   const getAmountByType = (type) => {
     return expenses.reduce((sum, e) => {
@@ -292,9 +309,7 @@ export function ExpensesPage() {
   };
 
   const fuelCost = getAmountByType("Fuel");
-  const tollCharges = getAmountByType("Toll");
-  const maintenance = getAmountByType("Maintenance");
-  const otherExpenses = totalExpenses - fuelCost - tollCharges - maintenance;
+  const otherExpenses = totalExpenses - fuelCost;
 
   const toggleSort = (field) => {
     if (sortField === field) {
@@ -308,6 +323,7 @@ export function ExpensesPage() {
 
   const clearFilters = () => {
     setSearchQuery("");
+    setFilterCategory("all");
     setFilterShipment("all");
     setFilterVehicle("all");
     setFilterDriver("all");
@@ -367,14 +383,10 @@ export function ExpensesPage() {
         throw new Error("Failed to save expense");
       }
 
-      const savedExpense = await response.json();
-      if (Array.isArray(savedExpense)) {
-        setExpenses((prev) => [...savedExpense, ...prev]);
-      } else {
-        setExpenses((prev) => [savedExpense, ...prev]);
-      }
+      await fetchExpenses();
     } catch (err) {
       console.error(err);
+      alert("Error saving expense: " + err.message);
     }
   };
 
@@ -388,10 +400,10 @@ export function ExpensesPage() {
       });
       if (!response.ok) throw new Error("Failed to update expense");
 
-      const { data } = await response.json();
-      setExpenses((prev) => prev.map((e) => (e._id === id ? { ...e, ...data } : e)));
+      await fetchExpenses();
     } catch (err) {
       console.error(err);
+      alert("Error updating expense: " + err.message);
     }
   };
 
@@ -403,9 +415,10 @@ export function ExpensesPage() {
       });
       if (!response.ok) throw new Error("Failed to delete expense");
 
-      setExpenses((prev) => prev.filter((e) => e._id !== id));
+      await fetchExpenses();
     } catch (err) {
       console.error(err);
+      alert("Error deleting expense: " + err.message);
     }
   };
 
@@ -414,6 +427,7 @@ export function ExpensesPage() {
       const params = new URLSearchParams();
       if (filterDate) params.set("dateFrom", filterDate.toISOString());
       if (filterExpenseType !== "all") params.set("expenseType", filterExpenseType);
+      if (filterCategory !== "all") params.set("category", filterCategory);
       if (selectMode && selectedTripIds.size > 0) {
         params.set("tripIds", Array.from(selectedTripIds).join(","));
       }
@@ -438,9 +452,9 @@ export function ExpensesPage() {
     // Flatten the grouped data to show individual expenses
     const flattenedRows = [];
 
-    // Filter by selected trips if selectMode is active and something is selected
+    // Filter by selected trips or vehicles if selectMode is active and items are checked
     const dataToExport = selectMode && selectedTripIds.size > 0
-      ? processedData.filter(group => selectedTripIds.has(group.tripId))
+      ? processedData.filter(group => selectedTripIds.has(group.tripId) || selectedTripIds.has(group.vehicleId))
       : processedData;
 
     dataToExport.forEach((group) => {
@@ -449,34 +463,35 @@ export function ExpensesPage() {
           // If the expense has multiple items, flatten those too
           if (expense.items && expense.items.length > 0) {
             expense.items.forEach(item => {
-              // Apply filterExpenseType at the item level if needed
               if (filterExpenseType !== "all" && item.expenseType !== filterExpenseType) return;
 
               flattenedRows.push({
-                "Trip / Shipment ID": group.tripId || "No Trip ID",
+                "Expense Category": group.category === "maintenance" ? "Maintenance" : "Dispatch",
+                "Trip / Vehicle ID": group.tripId || "N/A",
                 "LR Number": expense.lrNumber || "N/A",
-                "Driver Name": group.driverName || "N/A",
-                "Vehicle ID": group.vehicleId || "N/A",
+                "Vehicle No": group.vehicleId || expense.vehicleNo || "N/A",
+                "Driver Name": group.driverName || expense.driverName || "N/A",
                 "Expense Type": item.expenseType || "N/A",
                 "Amount (INR)": item.amount || 0,
-                "Description": item.description || expense.description || "N/A",
+                "Description": item.description || expense.notes || "N/A",
                 "Payment Mode": expense.paymentMode || "Cash",
                 "Status": expense.status || "Pending",
                 "Date": expense.date ? new Date(expense.date).toLocaleDateString("en-IN") : "N/A",
                 "Dealer / Customer": group.customerName || "N/A",
                 "Total kg per shipment": group.totalWeightKg || 0,
-                "Receipt Link": expense.receiptUrl ? `${API_BASE_URL}/expenses/${expense._id}/receipt` : ""
+                "Receipt Link": (item.receiptUrl || expense.receiptUrl) ? `${API_BASE_URL}/expenses/${expense._id}/receipt` : ""
               });
             });
           } else {
             flattenedRows.push({
-              "Trip / Shipment ID": group.tripId || "No Trip ID",
+              "Expense Category": group.category === "maintenance" ? "Maintenance" : "Dispatch",
+              "Trip / Vehicle ID": group.tripId || "N/A",
               "LR Number": expense.lrNumber || "N/A",
-              "Driver Name": group.driverName || "N/A",
-              "Vehicle ID": group.vehicleId || "N/A",
+              "Vehicle No": group.vehicleId || expense.vehicleNo || "N/A",
+              "Driver Name": group.driverName || expense.driverName || "N/A",
               "Expense Type": expense.expenseType || "N/A",
-              "Amount (INR)": expense.amount || 0,
-              "Description": expense.description || "N/A",
+              "Amount (INR)": expense.totalAmount !== undefined ? expense.totalAmount : (expense.amount || 0),
+              "Description": expense.notes || expense.description || "N/A",
               "Payment Mode": expense.paymentMode || "Cash",
               "Status": expense.status || "Pending",
               "Date": expense.date ? new Date(expense.date).toLocaleDateString("en-IN") : "N/A",
@@ -491,10 +506,10 @@ export function ExpensesPage() {
 
     const worksheet = XLSX.utils.json_to_sheet(flattenedRows);
 
-    // Make "Receipt Link" column clickable hyperlinks in SheetJS
+    // Column N (14th column, index 'N') is "Receipt Link"
     for (let i = 0; i < flattenedRows.length; i++) {
       const rowNum = i + 2;
-      const cellRef = `M${rowNum}`;
+      const cellRef = `N${rowNum}`;
       const url = flattenedRows[i]["Receipt Link"];
       if (url) {
         worksheet[cellRef] = {
@@ -508,13 +523,14 @@ export function ExpensesPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
 
-    // Auto-size columns slightly
+    // Auto-size columns
     const wscols = [
-      { wch: 20 }, // Trip ID
+      { wch: 18 }, // Category
+      { wch: 20 }, // Trip / Vehicle ID
       { wch: 15 }, // LR Number
-      { wch: 20 }, // Driver
-      { wch: 15 }, // Vehicle
-      { wch: 15 }, // Type
+      { wch: 16 }, // Vehicle No
+      { wch: 20 }, // Driver Name
+      { wch: 16 }, // Type
       { wch: 15 }, // Amount
       { wch: 30 }, // Description
       { wch: 15 }, // Payment Mode
@@ -531,6 +547,7 @@ export function ExpensesPage() {
 
   const hasActiveFilters =
     searchQuery ||
+    filterCategory !== "all" ||
     filterShipment !== "all" ||
     filterVehicle !== "all" ||
     filterDriver !== "all" ||
@@ -567,6 +584,8 @@ export function ExpensesPage() {
         setFilterDate={setFilterDate}
         dateOpen={dateOpen}
         setDateOpen={setDateOpen}
+        filterCategory={filterCategory}
+        setFilterCategory={setFilterCategory}
         filterShipment={filterShipment}
         setFilterShipment={setFilterShipment}
         filterVehicle={filterVehicle}
@@ -587,9 +606,9 @@ export function ExpensesPage() {
 
       <ExpenseSummaryCards
         totalExpenses={totalExpenses}
+        dispatchTotal={dispatchTotal}
+        maintenanceTotal={maintenanceTotal}
         fuelCost={fuelCost}
-        tollCharges={tollCharges}
-        maintenance={maintenance}
         otherExpenses={otherExpenses}
       />
 

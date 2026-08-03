@@ -225,6 +225,12 @@ export function ReportsPage() {
       }
     });
 
+    rows.sort((a, b) => {
+      const pA = String(a["Plant"] || "");
+      const pB = String(b["Plant"] || "");
+      return pA.localeCompare(pB, undefined, { numeric: true, sensitivity: "base" });
+    });
+
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Completed Invoices");
@@ -778,6 +784,12 @@ export function ReportsPage() {
                 });
               }
             }
+          });
+
+          flatInvoicesList.sort((a, b) => {
+            const pA = String(a.plantNumber || "");
+            const pB = String(b.plantNumber || "");
+            return pA.localeCompare(pB, undefined, { numeric: true, sensitivity: "base" });
           });
 
           return (
