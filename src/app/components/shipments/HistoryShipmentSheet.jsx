@@ -18,17 +18,6 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
   const [dateSearch, setDateSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
 
-  const {
-    tableContainerRef,
-    scrollbarRef,
-    sentinelRef,
-    scrollWidth,
-    showStickyScrollbar,
-    positionStyle,
-    handleTableScroll,
-    handleScrollbarScroll,
-  } = useStickyScrollbar([filtered, open]);
-
   // Filter history shipments based on user search criteria
   const filtered = useMemo(() => {
     return historyShipments.filter((s) => {
@@ -54,6 +43,17 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
       return matchesDealer && matchesVehicle && matchesDate;
     });
   }, [historyShipments, dealerSearch, vehicleSearch, dateSearch]);
+
+  const {
+    tableContainerRef,
+    scrollbarRef,
+    sentinelRef,
+    scrollWidth,
+    showStickyScrollbar,
+    positionStyle,
+    handleTableScroll,
+    handleScrollbarScroll,
+  } = useStickyScrollbar([filtered, open]);
 
   // Handle selection logic
   const handleToggleSelect = (id) => {
