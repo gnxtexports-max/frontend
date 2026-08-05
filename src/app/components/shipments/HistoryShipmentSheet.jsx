@@ -8,6 +8,7 @@ import { Calendar, User, Car, Download, X, Search, CheckSquare, Square, Trash2, 
 import { Badge } from "../ui/badge";
 import { useAuth } from "../../context/AuthContext";
 import { getPODConfig } from "./utils/shipmentStyles";
+import { useStickyScrollbar } from "../../hooks/useStickyScrollbar";
 
 export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = [], setSelectedShipment, setViewSheetOpen, onDeleted }) {
   const { user } = useAuth();
@@ -16,6 +17,17 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [dateSearch, setDateSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
+
+  const {
+    tableContainerRef,
+    scrollbarRef,
+    sentinelRef,
+    scrollWidth,
+    showStickyScrollbar,
+    positionStyle,
+    handleTableScroll,
+    handleScrollbarScroll,
+  } = useStickyScrollbar([filtered, open]);
 
   // Filter history shipments based on user search criteria
   const filtered = useMemo(() => {
@@ -209,9 +221,13 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
         </div>
 
         {/* History Table Container */}
-        <div className="bg-white rounded-xl border border-border shadow-sm flex-1 overflow-hidden flex flex-col min-h-0">
-          <div className="flex-1 overflow-auto">
-            <Table>
+        <div className="bg-white rounded-xl border border-border shadow-sm flex-1 overflow-hidden flex flex-col min-h-0 relative">
+          <div
+            ref={tableContainerRef}
+            onScroll={handleTableScroll}
+            className="flex-1 overflow-auto relative [&_[data-slot=table-container]]:overflow-x-visible"
+          >
+            <Table className="min-w-[1200px]">
               <TableHeader className="bg-slate-50/50 sticky top-0 z-10">
                 <TableRow>
                   {/* Select Checkbox Column */}
@@ -379,7 +395,23 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
                 )}
               </TableBody>
             </Table>
+            <div ref={sentinelRef} className="h-px w-full" />
           </div>
+
+          {showStickyScrollbar && (
+            <div
+              ref={scrollbarRef}
+              onScroll={handleScrollbarScroll}
+              className="fixed bottom-0 bg-white/95 border-t border-border z-50 overflow-x-auto overflow-y-hidden shadow-[0_-4px_12px_rgba(0,0,0,0.05)] transition-opacity duration-200"
+              style={{
+                left: positionStyle.left,
+                width: positionStyle.width,
+                height: "16px",
+              }}
+            >
+              <div style={{ width: scrollWidth, height: "1px" }} />
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Download, X, Search, Loader2, ChevronDown, ChevronRight, CornerUpLeft } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import { useAuth } from "../../context/AuthContext";
+import { useStickyScrollbar } from "../../hooks/useStickyScrollbar";
 
 const API_BASE_URL = import.meta.env?.VITE_API_URL || "http://localhost:5000/api";
 
@@ -20,6 +21,17 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
   const [total, setTotal] = useState(0);
 
   const [expandedRows, setExpandedRows] = useState({});
+
+  const {
+    tableContainerRef,
+    scrollbarRef,
+    sentinelRef,
+    scrollWidth,
+    showStickyScrollbar,
+    positionStyle,
+    handleTableScroll,
+    handleScrollbarScroll,
+  } = useStickyScrollbar([invoices, expandedRows, open]);
 
   const toggleRow = (id) => {
     setExpandedRows((prev) => ({
@@ -120,14 +132,18 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
         </div>
 
         {/* Table Container */}
-        <div className="bg-white rounded-xl border border-border shadow-sm flex-1 overflow-hidden flex flex-col min-h-0">
-          <div className="flex-1 overflow-auto relative">
+        <div className="bg-white rounded-xl border border-border shadow-sm flex-1 overflow-hidden flex flex-col min-h-0 relative">
+          <div
+            ref={tableContainerRef}
+            onScroll={handleTableScroll}
+            className="flex-1 overflow-auto relative [&_[data-slot=table-container]]:overflow-x-visible"
+          >
             {loading && (
               <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-50">
                 <Loader2 className="w-6 h-6 animate-spin text-[#1d4ed8]" />
               </div>
             )}
-            <Table>
+            <Table className="min-w-[950px]">
               <TableHeader className="bg-slate-50/50 sticky top-0 z-10">
                 <TableRow>
                   <TableHead className="w-8 pl-4" />
@@ -261,7 +277,23 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
                 )}
               </TableBody>
             </Table>
+            <div ref={sentinelRef} className="h-px w-full" />
           </div>
+
+          {showStickyScrollbar && (
+            <div
+              ref={scrollbarRef}
+              onScroll={handleScrollbarScroll}
+              className="fixed bottom-0 bg-white/95 border-t border-border z-50 overflow-x-auto overflow-y-hidden shadow-[0_-4px_12px_rgba(0,0,0,0.05)] transition-opacity duration-200"
+              style={{
+                left: positionStyle.left,
+                width: positionStyle.width,
+                height: "16px",
+              }}
+            >
+              <div style={{ width: scrollWidth, height: "1px" }} />
+            </div>
+          )}
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-muted/20 shrink-0">
