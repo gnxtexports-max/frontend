@@ -280,7 +280,7 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
             <div ref={sentinelRef} className="h-px w-full" />
           </div>
 
-          {showStickyScrollbar && (
+         {/* {showStickyScrollbar && (
             <div
               ref={scrollbarRef}
               onScroll={handleScrollbarScroll}
@@ -292,8 +292,8 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
               }}
             >
               <div style={{ width: scrollWidth, height: "1px" }} />
-            </div>
-          )}
+            </div> 
+          )}*/}
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-muted/20 shrink-0">
