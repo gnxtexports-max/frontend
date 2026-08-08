@@ -14,6 +14,8 @@ const API_BASE_URL = import.meta.env?.VITE_API_URL || "http://localhost:5000/api
 export function InvoiceHistorySheet({ open, onOpenChange }) {
   const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -64,7 +66,7 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
     }
   };
 
-  const fetchHistory = async (search = "", page = 1) => {
+  const fetchHistory = async (search = "", page = 1, fDate = fromDate, tDate = toDate) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -72,6 +74,8 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
         page,
         limit: 15,
       });
+      if (fDate) params.append("fromDate", fDate);
+      if (tDate) params.append("toDate", tDate);
 
       const res = await fetch(`${API_BASE_URL}/invoices/history?${params}`, {
         credentials: "include",
@@ -93,9 +97,9 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
   // Fetch when opened or when dependencies change
   useEffect(() => {
     if (open && token) {
-      fetchHistory(searchQuery, currentPage);
+      fetchHistory(searchQuery, currentPage, fromDate, toDate);
     }
-  }, [open, searchQuery, currentPage, token]);
+  }, [open, searchQuery, currentPage, fromDate, toDate, token]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -110,23 +114,49 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search & Date Filters */}
         <div className="bg-white border border-border rounded-xl p-4 shadow-sm mb-5 shrink-0">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by Plant No, Customer, or Invoice #..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-9 h-9 text-sm bg-slate-50/50 border-border"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                <X className="w-3 h-3" />
-              </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by Plant No, Customer, or Invoice #..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-9 h-9 text-xs bg-slate-50/30 border-border"
+              />
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50/30 px-2.5 py-1 rounded-md border border-border h-9 text-xs">
+              <span className="text-muted-foreground font-medium">From:</span>
+              <input
+                type="date"
+                value={fromDate || ""}
+                onChange={(e) => { setFromDate(e.target.value); setCurrentPage(1); }}
+                className="bg-transparent outline-none cursor-pointer text-foreground"
+              />
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50/30 px-2.5 py-1 rounded-md border border-border h-9 text-xs">
+              <span className="text-muted-foreground font-medium">To:</span>
+              <input
+                type="date"
+                value={toDate || ""}
+                onChange={(e) => { setToDate(e.target.value); setCurrentPage(1); }}
+                className="bg-transparent outline-none cursor-pointer text-foreground"
+              />
+            </div>
+            {(fromDate || toDate) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setFromDate(""); setToDate(""); setCurrentPage(1); }}
+                className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear
+              </Button>
             )}
           </div>
         </div>

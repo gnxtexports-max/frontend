@@ -39,7 +39,7 @@ export function PendingPODsPanel() {
   ];
 
   return (
-    <div className="bg-white border border-border rounded-xl p-5 shadow-sm flex flex-col h-full justify-between hover:shadow-md transition-all duration-300">
+    <div className="bg-white border border-border rounded-xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-300 w-full max-w-2xl mx-auto h-auto">
       {/* Header */}
       <div className="mb-4">
         <h3 className="text-base font-bold tracking-tight text-foreground">Shipment Operational Flow</h3>

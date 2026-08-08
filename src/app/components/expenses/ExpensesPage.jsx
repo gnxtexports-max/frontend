@@ -33,6 +33,8 @@ export function ExpensesPage() {
   const [filterDriver, setFilterDriver] = useState("all");
   const [filterExpenseType, setFilterExpenseType] = useState("all");
   const [filterDealer, setFilterDealer] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [filterDate, setFilterDate] = useState();
   const [dateOpen, setDateOpen] = useState(false);
 
@@ -57,8 +59,13 @@ export function ExpensesPage() {
   const fetchExpenses = async () => {
     try {
       setLoading(true);
+      const params = new URLSearchParams();
+      if (fromDate) params.append("fromDate", fromDate);
+      if (toDate) params.append("toDate", toDate);
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+
       const [expRes, shipRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/expenses`, { credentials: "include" }).catch(err => {
+        fetch(`${API_BASE_URL}/expenses${queryString}`, { credentials: "include" }).catch(err => {
           console.error("Failed fetching expenses:", err);
           return { ok: false };
         }),
@@ -86,14 +93,14 @@ export function ExpensesPage() {
 
   useEffect(() => {
     fetchExpenses();
-  }, []);
+  }, [fromDate, toDate]);
 
   // Live refresh on socket cache update
   useEffect(() => {
     const handler = () => fetchExpenses();
     window.addEventListener("api-cache-updated", handler);
     return () => window.removeEventListener("api-cache-updated", handler);
-  }, []);
+  }, [fromDate, toDate]);
 
   // Filter dropdown data
   const shipmentIds = useMemo(() => {
@@ -329,6 +336,8 @@ export function ExpensesPage() {
     setFilterDriver("all");
     setFilterDealer("all");
     setFilterExpenseType("all");
+    setFromDate("");
+    setToDate("");
     setFilterDate(undefined);
     setCurrentPage(1);
   };
@@ -580,10 +589,10 @@ export function ExpensesPage() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         setCurrentPage={setCurrentPage}
-        filterDate={filterDate}
-        setFilterDate={setFilterDate}
-        dateOpen={dateOpen}
-        setDateOpen={setDateOpen}
+        fromDate={fromDate}
+        setFromDate={setFromDate}
+        toDate={toDate}
+        setToDate={setToDate}
         filterCategory={filterCategory}
         setFilterCategory={setFilterCategory}
         filterShipment={filterShipment}

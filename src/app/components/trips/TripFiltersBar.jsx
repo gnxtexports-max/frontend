@@ -1,8 +1,9 @@
-import { Search, Truck, Filter } from "lucide-react";
+import { Search, Truck, Filter, CalendarDays, X } from "lucide-react";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
+import { Button } from "../ui/button";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,11 @@ export function TripFiltersBar({
   setStatusFilter,
   vehicleTypeFilter,
   setVehicleTypeFilter,
+  fromDate,
+  setFromDate,
+  toDate,
+  setToDate,
+  onClearDates,
   showNotDispatched,
   setShowNotDispatched,
   filteredVehicles,
@@ -26,7 +32,7 @@ export function TripFiltersBar({
 }) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <div className="relative flex-1 min-w-[280px] max-w-md">
+      <div className="relative flex-1 min-w-[240px] max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           placeholder="Search by Vehicle, Driver, Shipment ID, Dealer..."
@@ -37,7 +43,7 @@ export function TripFiltersBar({
       </div>
 
       <Select value={statusFilter} onValueChange={setStatusFilter}>
-        <SelectTrigger className="w-[190px] h-9 bg-white border-border">
+        <SelectTrigger className="w-[180px] h-9 bg-white border-border">
           <div className="flex items-center gap-2">
             <Filter className="w-3.5 h-3.5 text-muted-foreground" />
             <SelectValue placeholder="Active Trips" />
@@ -53,7 +59,7 @@ export function TripFiltersBar({
       </Select>
 
       <Select value={vehicleTypeFilter} onValueChange={setVehicleTypeFilter}>
-        <SelectTrigger className="w-[155px] h-9 bg-white border-border">
+        <SelectTrigger className="w-[150px] h-9 bg-white border-border">
           <div className="flex items-center gap-2">
             <Truck className="w-3.5 h-3.5 text-muted-foreground" />
             <SelectValue placeholder="Vehicle Type" />
@@ -65,6 +71,40 @@ export function TripFiltersBar({
           <SelectItem value="Rented">Rented Vehicles</SelectItem>
         </SelectContent>
       </Select>
+
+      <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-border h-9 text-xs">
+        <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-muted-foreground font-medium">From:</span>
+        <input
+          type="date"
+          value={fromDate || ""}
+          onChange={(e) => setFromDate && setFromDate(e.target.value)}
+          className="bg-transparent outline-none cursor-pointer text-foreground"
+        />
+      </div>
+
+      <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-border h-9 text-xs">
+        <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-muted-foreground font-medium">To:</span>
+        <input
+          type="date"
+          value={toDate || ""}
+          onChange={(e) => setToDate && setToDate(e.target.value)}
+          className="bg-transparent outline-none cursor-pointer text-foreground"
+        />
+      </div>
+
+      {(fromDate || toDate) && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClearDates}
+          className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <X className="w-3.5 h-3.5 mr-1" />
+          Clear
+        </Button>
+      )}
 
       <div className="ml-auto flex items-center gap-3">
         <div className="flex items-center gap-2">

@@ -34,6 +34,8 @@ export function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [invoices, setInvoices] = useState([]);
   const [statusFilter, setStatusFilter] = useState("All");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -92,7 +94,9 @@ export function InvoicesPage() {
     search = "",
     status = "All",
     page = 1,
-    hideLoading = false
+    hideLoading = false,
+    fDate = fromDate,
+    tDate = toDate
   ) => {
     if (!hideLoading) {
       setLoading(true);
@@ -106,6 +110,8 @@ export function InvoicesPage() {
         page,
         limit: itemsPerPage,
       });
+      if (fDate) params.append("fromDate", fDate);
+      if (tDate) params.append("toDate", tDate);
 
       const res = await fetch(
         `${API_BASE_URL}/invoices?${params}`,
@@ -130,19 +136,19 @@ export function InvoicesPage() {
 
   useEffect(() => {
     if (!token) return;
-    fetchInvoices(searchQuery, statusFilter, currentPage);
+    fetchInvoices(searchQuery, statusFilter, currentPage, false, fromDate, toDate);
   }, [currentPage, token]);
 
   useEffect(() => {
     if (!token) return;
     setCurrentPage(1);
-    fetchInvoices(searchQuery, statusFilter, 1);
-  }, [searchQuery, statusFilter, token]);
+    fetchInvoices(searchQuery, statusFilter, 1, false, fromDate, toDate);
+  }, [searchQuery, statusFilter, fromDate, toDate, token]);
 
   // Silent refresh on cache updates
   useEffect(() => {
     if (!token) return;
-    const handler = () => fetchInvoices(searchQuery, statusFilter, currentPage, true);
+    const handler = () => fetchInvoices(searchQuery, statusFilter, currentPage, true, fromDate, toDate);
     window.addEventListener("api-cache-updated", handler);
     return () => window.removeEventListener("api-cache-updated", handler);
   }, [searchQuery, statusFilter, currentPage, token]);
@@ -438,6 +444,11 @@ export function InvoicesPage() {
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
+        fromDate={fromDate}
+        setFromDate={setFromDate}
+        toDate={toDate}
+        setToDate={setToDate}
+        onClearDates={() => { setFromDate(""); setToDate(""); }}
       />
 
       <InvoiceTable

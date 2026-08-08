@@ -6,10 +6,15 @@ export function useShipments() {
   const [shipmentData, setShipmentData] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchShipments = useCallback(async () => {
+  const fetchShipments = useCallback(async (fromDate, toDate) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/shipments`);
+      const params = new URLSearchParams();
+      if (fromDate) params.append("fromDate", fromDate);
+      if (toDate) params.append("toDate", toDate);
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+
+      const res = await fetch(`${API_BASE_URL}/shipments${queryString}`);
       const json = await res.json();
       // Handle both plain array and { data: [] } shaped responses
       const list = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [];

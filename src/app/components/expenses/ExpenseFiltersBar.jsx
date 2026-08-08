@@ -18,10 +18,10 @@ export function ExpenseFiltersBar({
   searchQuery,
   setSearchQuery,
   setCurrentPage,
-  filterDate,
-  setFilterDate,
-  dateOpen,
-  setDateOpen,
+  fromDate,
+  setFromDate,
+  toDate,
+  setToDate,
   filterCategory = "all",
   setFilterCategory,
   filterShipment,
@@ -97,6 +97,36 @@ export function ExpenseFiltersBar({
             ))}
           </SelectContent>
         </Select>
+
+        {/* From Date */}
+        <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-border h-9 text-xs">
+          <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground font-medium">From:</span>
+          <input
+            type="date"
+            value={fromDate || ""}
+            onChange={(e) => {
+              if (setFromDate) setFromDate(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="bg-transparent outline-none cursor-pointer text-foreground"
+          />
+        </div>
+
+        {/* To Date */}
+        <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-border h-9 text-xs">
+          <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground font-medium">To:</span>
+          <input
+            type="date"
+            value={toDate || ""}
+            onChange={(e) => {
+              if (setToDate) setToDate(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="bg-transparent outline-none cursor-pointer text-foreground"
+          />
+        </div>
 
         {/* LR Number */}
         <Select
@@ -183,7 +213,7 @@ export function ExpenseFiltersBar({
         </Select>
 
         {/* Clear Filters */}
-        {hasActiveFilters && (
+        {(hasActiveFilters || fromDate || toDate) && (
           <Button
             variant="ghost"
             onClick={onClear}

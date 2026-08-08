@@ -44,6 +44,8 @@ import { cn } from "./ui/utils";
 
 export function ReportsPage() {
   const [dateRange, setDateRange] = useState("7d");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState("all");
   const [driverFilter, setDriverFilter] = useState("all");
   const [dealerFilter, setDealerFilter] = useState("all");
@@ -93,15 +95,17 @@ export function ReportsPage() {
     async function fetchStats() {
       setLoading(true);
       try {
-        const query = new URLSearchParams({
-          dateRange,
+        const queryParams = new URLSearchParams({
+          dateRange: (fromDate || toDate) ? "custom" : dateRange,
           vehicle: vehicleFilter,
           driver: driverFilter,
           dealer: dealerFilter,
           groupBy,
-        }).toString();
+        });
+        if (fromDate) queryParams.append("fromDate", fromDate);
+        if (toDate) queryParams.append("toDate", toDate);
 
-        const res = await fetch(`${import.meta.env?.VITE_API_URL || "http://localhost:5000/api"}/reports/stats?${query}`);
+        const res = await fetch(`${import.meta.env?.VITE_API_URL || "http://localhost:5000/api"}/reports/stats?${queryParams.toString()}`);
         const json = await res.json();
         if (json.success) {
           setStats(json.data.stats || {
@@ -123,7 +127,7 @@ export function ReportsPage() {
       }
     }
     fetchStats();
-  }, [dateRange, vehicleFilter, driverFilter, dealerFilter, groupBy, refreshTrigger]);
+  }, [dateRange, fromDate, toDate, vehicleFilter, driverFilter, dealerFilter, groupBy, refreshTrigger]);
 
   // Live refresh on socket cache update
   useEffect(() => {
@@ -322,7 +326,7 @@ export function ReportsPage() {
           </div>
 
           {/* Date Range */}
-          <Select value={dateRange || "7d"} onValueChange={(val) => setDateRange(val || "7d")}>
+          <Select value={dateRange || "7d"} onValueChange={(val) => { setDateRange(val || "7d"); setFromDate(""); setToDate(""); }}>
             <SelectTrigger className="w-[140px] h-9 text-xs bg-white border-slate-200 rounded-md">
               <CalendarDays className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
               <SelectValue />
@@ -335,6 +339,42 @@ export function ReportsPage() {
               <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* From Date */}
+          <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-slate-200 h-9 text-xs">
+            <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-slate-500 font-medium">From:</span>
+            <input
+              type="date"
+              value={fromDate || ""}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="bg-transparent outline-none cursor-pointer text-foreground"
+            />
+          </div>
+
+          {/* To Date */}
+          <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-slate-200 h-9 text-xs">
+            <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-slate-500 font-medium">To:</span>
+            <input
+              type="date"
+              value={toDate || ""}
+              onChange={(e) => setToDate(e.target.value)}
+              className="bg-transparent outline-none cursor-pointer text-foreground"
+            />
+          </div>
+
+          {(fromDate || toDate) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setFromDate(""); setToDate(""); }}
+              className="h-9 px-2 text-xs text-slate-500 hover:text-slate-900"
+            >
+              <X className="w-3.5 h-3.5 mr-1" />
+              Clear Dates
+            </Button>
+          )}
 
           {/* Vehicle */}
           <Select value={vehicleFilter || "all"} onValueChange={(val) => setVehicleFilter(val || "all")}>

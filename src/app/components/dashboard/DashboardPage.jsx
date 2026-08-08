@@ -5,6 +5,7 @@ import { DashboardHeader } from "./DashboardHeader";
 import { DashboardStatsGrid } from "./DashboardStatsGrid";
 import { DashboardChart } from "./DashboardChart";
 import { PendingPODsPanel } from "./PendingPODsPanel";
+import { InvoiceDispatchSummary } from "./InvoiceDispatchSummary";
 import { StatDetailView } from "./StatDetailView";
 import { ViewShipmentSheet } from "../shipments/ViewShipmentSheet";
 import { getPODConfig } from "../shipments/utils/shipmentStyles";
@@ -13,10 +14,21 @@ import { getPODConfig } from "../shipments/utils/shipmentStyles";
 const API_BASE_URL = import.meta.env?.VITE_API_URL || "http://localhost:5000/api";
 
 export function DashboardPage() {
+  const getDefaultFromDate = () => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  };
+
+  const getDefaultToDate = () => {
+    return new Date().toISOString().split("T")[0];
+  };
+
   const [activeStatView, setActiveStatView] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [podFilter, setPodFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState(undefined);
+  const [fromDate, setFromDate] = useState(getDefaultFromDate());
+  const [toDate, setToDate] = useState(getDefaultToDate());
   const [showHistory, setShowHistory] = useState(true);
   const [viewSheetOpen, setViewSheetOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState(null);
@@ -39,17 +51,29 @@ export function DashboardPage() {
     const handler = () => fetchDashboardData(true);
     window.addEventListener("api-cache-updated", handler);
     return () => window.removeEventListener("api-cache-updated", handler);
-  }, []);
+  }, [fromDate, toDate]);
 
-  const fetchDashboardData = async (silent = false) => {
+  const fetchDashboardData = async (silent = false, fDate = fromDate, tDate = toDate) => {
     if (!silent) setLoading(true);
     try {
+      const queryParams = new URLSearchParams();
+      if (fDate) queryParams.append("fromDate", fDate);
+      if (tDate) queryParams.append("toDate", tDate);
+      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
+
+      const shipmentQuery = new URLSearchParams({ limit: "200" });
+      if (fDate) shipmentQuery.append("fromDate", fDate);
+      if (tDate) shipmentQuery.append("toDate", tDate);
+
+      const invoiceQuery = new URLSearchParams({ status: "Pending" });
+      const cancelledQuery = new URLSearchParams({ status: "Cancelled", all: "true", limit: "200" });
+
       const [statsRes, weeklyRes, shipmentsRes, invoicesRes, cancelledInvoicesRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/dashboard/stats`).catch(() => ({ data: { success: false } })),
-        axios.get(`${API_BASE_URL}/dashboard/weekly`).catch(() => ({ data: { success: false } })),
-        axios.get(`${API_BASE_URL}/shipments?limit=100`).catch(() => ({ data: { success: false } })),
-        axios.get(`${API_BASE_URL}/invoices?status=Pending`).catch(() => ({ data: { success: false } })),
-        axios.get(`${API_BASE_URL}/invoices?status=Cancelled&all=true&limit=100`).catch(() => ({ data: { success: false } }))
+        axios.get(`${API_BASE_URL}/dashboard/weekly${queryString}`).catch(() => ({ data: { success: false } })),
+        axios.get(`${API_BASE_URL}/shipments?limit=300`).catch(() => ({ data: { success: false } })),
+        axios.get(`${API_BASE_URL}/invoices?${invoiceQuery.toString()}`).catch(() => ({ data: { success: false } })),
+        axios.get(`${API_BASE_URL}/invoices?${cancelledQuery.toString()}`).catch(() => ({ data: { success: false } }))
       ]);
 
       if (statsRes.data?.success) setStats(statsRes.data.data);
@@ -89,48 +113,99 @@ export function DashboardPage() {
     }
   };
 
-  const formatShipmentForTable = (s) => ({
-    id: s.shipmentId,
-    vehicle: s.vehicleNumber || "Unknown",
-    driver: s.driverName || "Unknown",
-    destination: s.destinations?.[0]?.customerName || s.destinations?.[0]?.deliveryLocation || "Unknown",
-    customer: s.destinations?.[0]?.customerName || "Unknown",
-    location: s.destinations?.[0]?.deliveryLocation || "—",
-    status: s.status,
-    progress: s.status === "Delivered" ? 100 : (s.status === "In Transit" ? 60 : 10),
-    eta: s.deliveryDate ? format(new Date(s.deliveryDate), "MMM d, yyyy h:mm a") : "Pending",
-    items: `${s.totalQuantity || 0} Items`,
-    podConfig: getPODConfig(s),
-    podStatus: getPODConfig(s).label,
-    originalDate: s.dispatchDate || s.createdAt,
-    originalData: s
-  });
+  const handleApplyFilter = () => {
+    fetchDashboardData(false, fromDate, toDate);
+  };
 
-  // Filter the current shipments dynamically based on selected card view
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setHours(0, 0, 0, 0);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const handleClearDates = () => {
+    const defFrom = getDefaultFromDate();
+    const defTo = getDefaultToDate();
+    setFromDate(defFrom);
+    setToDate(defTo);
+    fetchDashboardData(false, defFrom, defTo);
+  };
+
+  const formatShipmentForTable = (s) => {
+    let invoicesList = [];
+    if (s.destinations && Array.isArray(s.destinations)) {
+      s.destinations.forEach(d => {
+        if (d.invoiceNumbers && Array.isArray(d.invoiceNumbers) && d.invoiceNumbers.length > 0) {
+          invoicesList.push(...d.invoiceNumbers);
+        } else if (d.plantReferenceNumber) {
+          const parts = d.plantReferenceNumber.split(',').map(p => p.trim()).filter(Boolean);
+          invoicesList.push(...parts);
+        }
+      });
+    }
+    if (invoicesList.length === 0 && s.plantReferenceNumber) {
+      invoicesList = s.plantReferenceNumber.split(',').map(p => p.trim()).filter(Boolean);
+    }
+    if (invoicesList.length === 0 && s.shipmentId) {
+      invoicesList = [s.shipmentId];
+    }
+
+    return {
+      id: s.shipmentId,
+      vehicle: s.vehicleNumber || "Unknown",
+      driver: s.driverName || "Unknown",
+      destination: s.destinations?.[0]?.customerName || s.destinations?.[0]?.deliveryLocation || "Unknown",
+      customer: s.destinations?.[0]?.customerName || "Unknown",
+      location: s.destinations?.[0]?.deliveryLocation || "—",
+      weight: s.totalWeightKg || 0,
+      invoicesList,
+      status: s.status,
+      progress: s.status === "Delivered" ? 100 : (s.status === "In Transit" ? 60 : 10),
+      eta: s.deliveryDate ? format(new Date(s.deliveryDate), "MMM d, yyyy h:mm a") : "Pending",
+      items: `${s.totalQuantity || 0} Items`,
+      podConfig: getPODConfig(s),
+      podStatus: getPODConfig(s).label,
+      originalDate: s.dispatchDate || s.createdAt,
+      originalData: s
+    };
+  };
+
+  const isToday = (d) => {
+    if (!d) return false;
+    const date = new Date(d);
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
+  };
 
   let baseData = [];
-  if (activeStatView === "Active Shipments") {
-    baseData = currentShipments.filter(s => s.status === "In Transit" && new Date(s.originalDate) >= sevenDaysAgo);
-  } else if (activeStatView === "Pending Dispatch") {
-    baseData = currentShipments.filter(s => s.status === "Pending" && new Date(s.originalDate) >= sevenDaysAgo);
+  const uniqueShipmentMap = new Map();
+  [...currentShipments, ...historicalShipments].forEach(s => {
+    const key = s.id || s._id;
+    if (key && !uniqueShipmentMap.has(key)) {
+      uniqueShipmentMap.set(key, s);
+    }
+  });
+  const allShipments = Array.from(uniqueShipmentMap.values());
+
+  if (activeStatView === "In Transit Shipments" || activeStatView === "Active Shipments") {
+    baseData = allShipments.filter(s => s.status === "In Transit");
+  } else if (activeStatView === "Pending Invoices for Dispatch" || activeStatView === "Pending Dispatch") {
+    baseData = allShipments.filter(s => s.status === "Pending");
   } else if (activeStatView === "Cancelled Invoices") {
-    baseData = cancelledInvoices.map(plant => ({
-      id: plant.invoices?.[0]?.invoiceNumber || "—",
-      originalDate: plant.cancelledAt || plant.createdAt,
-      customer: plant.customerName,
-      location: plant.location || "—",
-      status: plant.status,
-      allInvoices: plant.invoices
-    })).filter(item => new Date(item.originalDate) >= sevenDaysAgo);
+    baseData = cancelledInvoices
+      .filter(plant => isToday(plant.cancelledAt || plant.createdAt))
+      .map(plant => ({
+        id: plant.invoices?.[0]?.invoiceNumber || "—",
+        originalDate: plant.cancelledAt || plant.createdAt,
+        customer: plant.customerName,
+        location: plant.location || "—",
+        status: plant.status,
+        allInvoices: plant.invoices,
+        invoicesList: plant.invoices?.map(i => i.invoiceNumber) || []
+      }));
   } else if (activeStatView === "Deliveries Today") {
-    const todayStr = new Date().toDateString();
-    baseData = historicalShipments.filter(s => {
-      const isCorrectStatus = ["Delivered", "Closed"].includes(s.status);
-      const deliveryDate = new Date(s.originalData.deliveryDate || s.originalDate).toDateString();
-      return isCorrectStatus && deliveryDate === todayStr;
+    baseData = allShipments.filter(s => {
+      const isDelivered = ["Delivered", "Closed"].includes(s.status);
+      const deliveryDateVal = s.originalData?.deliveryDate || s.originalDate || s.createdAt;
+      return isDelivered && isToday(deliveryDateVal);
     }).map(s => ({
       ...s,
       customer: s.originalData?.destinations?.[0]?.customerName || s.customer,
@@ -140,6 +215,87 @@ export function DashboardPage() {
   } else if (activeStatView) {
     baseData = showHistory ? historicalShipments : currentShipments;
   }
+
+  // Calculate dynamic stats from table datasets for 100% card-table parity
+  const computeStatsWithTableSync = (rawStats = []) => {
+    if (!rawStats || rawStats.length === 0) return rawStats;
+
+    return rawStats.map(stat => {
+      if (stat.title === "Cancelled Invoices") {
+        const cancelledTodayItems = cancelledInvoices.filter(plant =>
+          isToday(plant.cancelledAt || plant.createdAt)
+        );
+        return {
+          ...stat,
+          value: cancelledTodayItems.length.toString()
+        };
+      }
+
+      if (stat.title === "Deliveries Today") {
+        const deliveredTodayItems = allShipments.filter(s => {
+          const isDelivered = ["Delivered", "Closed"].includes(s.status);
+          const dateVal = s.originalData?.deliveryDate || s.originalDate || s.createdAt;
+          return isDelivered && isToday(dateVal);
+        });
+
+        let totalInvoices = 0;
+        let totalWeight = 0;
+        deliveredTodayItems.forEach(s => {
+          totalWeight += (s.originalData?.totalWeightKg ?? s.weight ?? 0);
+          totalInvoices += (s.invoicesList?.length || 1);
+        });
+
+        return {
+          ...stat,
+          value: deliveredTodayItems.length.toString(),
+          deliveredInvoices: totalInvoices,
+          deliveredWeight: totalWeight,
+          deliveredWeightFormatted: `${totalWeight.toLocaleString("en-IN", { maximumFractionDigits: 2 })} kg`
+        };
+      }
+
+      if (stat.title === "Pending Invoices for Dispatch") {
+        const pendingItems = allShipments.filter(s => s.status === "Pending");
+        let totalInvoices = 0;
+        let totalWeight = 0;
+
+        pendingItems.forEach(s => {
+          totalWeight += (s.originalData?.totalWeightKg ?? s.weight ?? 0);
+          totalInvoices += (s.invoicesList?.length || 1);
+        });
+
+        return {
+          ...stat,
+          value: pendingItems.length.toString(),
+          pendingInvoices: totalInvoices,
+          pendingWeight: totalWeight,
+          pendingWeightFormatted: `${totalWeight.toLocaleString("en-IN", { maximumFractionDigits: 2 })} kg`
+        };
+      }
+
+      if (stat.title === "In Transit Shipments") {
+        const inTransitItems = allShipments.filter(s => s.status === "In Transit");
+        let totalInvoices = 0;
+        let totalWeight = 0;
+        inTransitItems.forEach(s => {
+          totalWeight += (s.originalData?.totalWeightKg ?? s.weight ?? 0);
+          totalInvoices += (s.invoicesList?.length || 1);
+        });
+
+        return {
+          ...stat,
+          value: inTransitItems.length.toString(),
+          inTransitInvoices: totalInvoices,
+          inTransitWeight: totalWeight,
+          inTransitWeightFormatted: `${totalWeight.toLocaleString("en-IN", { maximumFractionDigits: 2 })} kg`
+        };
+      }
+
+      return stat;
+    });
+  };
+
+  const displayStats = computeStatsWithTableSync(stats);
 
   // Apply search filter
   const tableData = baseData.filter((item) => {
@@ -195,11 +351,19 @@ export function DashboardPage() {
             </div>
           ) : (
             <>
-              <DashboardStatsGrid onStatClick={setActiveStatView} stats={stats} />
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <DashboardChart weeklyData={weeklyData} />
-                <PendingPODsPanel />
-              </div>
+              <DashboardStatsGrid onStatClick={setActiveStatView} stats={displayStats} />
+              <DashboardChart
+                weeklyData={weeklyData}
+                fromDate={fromDate}
+                setFromDate={setFromDate}
+                toDate={toDate}
+                setToDate={setToDate}
+                onApply={handleApplyFilter}
+                onReset={handleClearDates}
+                loading={loading}
+              />
+              <InvoiceDispatchSummary fromDate={fromDate} toDate={toDate} />
+              <PendingPODsPanel />
             </>
           )}
         </div>

@@ -28,21 +28,22 @@ export function ShipmentList() {
   const [editShipment, setEditShipment] = useState(null); // shipment to edit
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [podFilter, setPodFilter] = useState("all");
   const [uploading, setUploading] = useState(false);
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    fetchShipments();
-  }, [fetchShipments]);
+    fetchShipments(fromDate, toDate);
+  }, [fromDate, toDate, fetchShipments]);
 
   // Live refresh on socket cache update
   useEffect(() => {
-    const handler = () => fetchShipments();
+    const handler = () => fetchShipments(fromDate, toDate);
     window.addEventListener("api-cache-updated", handler);
     return () => window.removeEventListener("api-cache-updated", handler);
-  }, [fetchShipments]);
+  }, [fromDate, toDate, fetchShipments]);
 
   useEffect(() => {
     setTotal(shipmentData.length);
@@ -77,7 +78,6 @@ export function ShipmentList() {
 
       const mappedStatus = s.status;
       const matchesStatus = statusFilter === "all" || mappedStatus === statusFilter;
-      const matchesDate = dateFilter === "all" || isWithinDateRange(s.createdAt, dateFilter);
 
       const podConfig = getPODConfig(s);
       const matchesPod =
@@ -87,9 +87,9 @@ export function ShipmentList() {
         (podFilter === "Signed" && podConfig.label === "Signed") ||
         (podFilter === "Not Generated" && podConfig.label === "Not Generated");
 
-      return matchesSearch && matchesStatus && matchesDate && matchesPod;
+      return matchesSearch && matchesStatus && matchesPod;
     });
-  }, [activeShipmentsOnly, searchQuery, statusFilter, dateFilter, podFilter]);
+  }, [activeShipmentsOnly, searchQuery, statusFilter, podFilter]);
 
   const statusCounts = useMemo(() => {
     const list = activeShipmentsOnly;
@@ -207,8 +207,11 @@ export function ShipmentList() {
           onSearchChange={setSearchQuery}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
-          dateFilter={dateFilter}
-          onDateFilterChange={setDateFilter}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+          toDate={toDate}
+          setToDate={setToDate}
+          onClearDates={() => { setFromDate(""); setToDate(""); }}
           podFilter={podFilter}
           onPodFilterChange={setPodFilter}
           statusCounts={{ ...statusCounts }}

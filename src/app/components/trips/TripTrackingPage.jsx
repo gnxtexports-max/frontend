@@ -16,6 +16,8 @@ export function TripTrackingPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [showNotDispatched, setShowNotDispatched] = useState(false);
 
   const [vehicles, setVehicles] = useState([]);
@@ -30,21 +32,25 @@ export function TripTrackingPage() {
 
   useEffect(() => {
     fetchTripData();
-  }, []);
+  }, [fromDate, toDate]);
 
   // Silent refresh on cache updates
   useEffect(() => {
     const handler = () => fetchTripData();
     window.addEventListener("api-cache-updated", handler);
     return () => window.removeEventListener("api-cache-updated", handler);
-  }, []);
+  }, [fromDate, toDate]);
 
   const fetchTripData = async () => {
     setLoading(true);
     try {
+      const params = new URLSearchParams({ limit: "100" });
+      if (fromDate) params.append("fromDate", fromDate);
+      if (toDate) params.append("toDate", toDate);
+
       const [vehiclesRes, shipmentsRes, gpsRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/vehicles`),
-        axios.get(`${API_BASE_URL}/shipments?limit=100`),
+        axios.get(`${API_BASE_URL}/shipments?${params.toString()}`),
         axios.get(`${API_BASE_URL}/gps/all`)
       ]);
 
@@ -227,6 +233,11 @@ export function TripTrackingPage() {
               setStatusFilter={setStatusFilter}
               vehicleTypeFilter={vehicleTypeFilter}
               setVehicleTypeFilter={setVehicleTypeFilter}
+              fromDate={fromDate}
+              setFromDate={setFromDate}
+              toDate={toDate}
+              setToDate={setToDate}
+              onClearDates={() => { setFromDate(""); setToDate(""); }}
               showNotDispatched={showNotDispatched}
               setShowNotDispatched={setShowNotDispatched}
               filteredVehicles={filteredVehicles}

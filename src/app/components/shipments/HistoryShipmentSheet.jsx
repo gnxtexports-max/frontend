@@ -15,7 +15,8 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
   const isAdmin = user?.role === "Super Admin";
   const [dealerSearch, setDealerSearch] = useState("");
   const [vehicleSearch, setVehicleSearch] = useState("");
-  const [dateSearch, setDateSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
 
   // Filter history shipments based on user search criteria
@@ -31,18 +32,25 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
       const matchesVehicle = !vehicleSearch ||
         (s.vehicleNumber && s.vehicleNumber.toLowerCase().includes(vehicleSearch.toLowerCase()));
 
-      // 3. Date Filter (matches created date or delivery date)
+      // 3. Date Filter (From Date - To Date)
       let matchesDate = true;
-      if (dateSearch) {
-        const searchDateStr = new Date(dateSearch).toDateString();
-        const createdDateStr = s.createdAt ? new Date(s.createdAt).toDateString() : "";
-        const deliveryDateStr = s.deliveryDate ? new Date(s.deliveryDate).toDateString() : "";
-        matchesDate = (searchDateStr === createdDateStr) || (searchDateStr === deliveryDateStr);
+      const targetDate = s.deliveryDate ? new Date(s.deliveryDate) : (s.createdAt ? new Date(s.createdAt) : null);
+      if (targetDate) {
+        if (fromDate) {
+          const f = new Date(fromDate);
+          f.setHours(0, 0, 0, 0);
+          if (targetDate < f) matchesDate = false;
+        }
+        if (toDate) {
+          const t = new Date(toDate);
+          t.setHours(23, 59, 59, 999);
+          if (targetDate > t) matchesDate = false;
+        }
       }
 
       return matchesDealer && matchesVehicle && matchesDate;
     });
-  }, [historyShipments, dealerSearch, vehicleSearch, dateSearch]);
+  }, [historyShipments, dealerSearch, vehicleSearch, fromDate, toDate]);
 
   const {
     tableContainerRef,
@@ -202,17 +210,35 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
               )}
             </div>
 
-            {/* Date Wise */}
+            {/* From Date */}
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="date"
-                value={dateSearch}
-                onChange={(e) => setDateSearch(e.target.value)}
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                placeholder="From Date"
                 className="pl-9 h-9 text-xs bg-slate-50/30 border-border"
               />
-              {dateSearch && (
-                <button onClick={() => setDateSearch("")} className="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              {fromDate && (
+                <button onClick={() => setFromDate("")} className="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* To Date */}
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                placeholder="To Date"
+                className="pl-9 h-9 text-xs bg-slate-50/30 border-border"
+              />
+              {toDate && (
+                <button onClick={() => setToDate("")} className="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                   <X className="w-3 h-3" />
                 </button>
               )}
