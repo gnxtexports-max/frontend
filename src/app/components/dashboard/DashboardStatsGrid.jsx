@@ -15,8 +15,8 @@ export function DashboardStatsGrid({ onStatClick, stats = [] }) {
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
       {stats.map((stat, i) => {
         const IconComponent = ICON_MAP[stat.iconName];
-        const isInTransitCard = stat.title === "In Transit Shipments" || stat.inTransitInvoices !== undefined;
-        const isPendingDispatchCard = stat.title === "Pending Invoices for Dispatch" || stat.pendingInvoices !== undefined;
+        const isInTransitCard = stat.title === "In Transit Shipments" || stat.title === "Active Shipments" || stat.inTransitInvoices !== undefined;
+        const isPendingDispatchCard = stat.title === "Pending Invoices for Dispatch" || stat.title === "Pending Dispatch" || stat.pendingInvoices !== undefined;
         const isCancelledCard = stat.title === "Cancelled Invoices";
         const isDeliveriesTodayCard = stat.title === "Deliveries Today" || stat.deliveredInvoices !== undefined;
 

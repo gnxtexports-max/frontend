@@ -124,7 +124,26 @@ export function InvoicesPage() {
         throw new Error(result?.message || `Failed to fetch invoices (${res.status})`);
       }
 
-      setInvoices(result.data || []);
+      const rawData = result.data || [];
+      const sortedData = [...rawData].map((group) => {
+        if (group.invoices && Array.isArray(group.invoices)) {
+          group.invoices.sort((a, b) => {
+            const dDiff = new Date(b.invoiceDate || 0) - new Date(a.invoiceDate || 0);
+            if (dDiff !== 0) return dDiff;
+            return String(b.invoiceNumber || "").localeCompare(String(a.invoiceNumber || ""), undefined, { numeric: true, sensitivity: "base" });
+          });
+        }
+        return group;
+      });
+
+      sortedData.sort((a, b) => {
+        const maxA = Math.max(...(a.invoices || []).map((i) => new Date(i.invoiceDate || 0).getTime() || 0));
+        const maxB = Math.max(...(b.invoices || []).map((i) => new Date(i.invoiceDate || 0).getTime() || 0));
+        if (maxB !== maxA) return maxB - maxA;
+        return String(b.plantNumber || "").localeCompare(String(a.plantNumber || ""), undefined, { numeric: true, sensitivity: "base" });
+      });
+
+      setInvoices(sortedData);
       setTotal(result.pagination?.total || 0);
       setTotalPages(result.pagination?.totalPages || 1);
     } catch (err) {
