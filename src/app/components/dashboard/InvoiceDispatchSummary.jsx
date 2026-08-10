@@ -64,68 +64,84 @@ export function InvoiceDispatchSummary({ fromDate, toDate }) {
 
       {/* Horizontal Divider */}
       <div className="border-t border-border pt-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
           {/* Card 1: Total Invoices */}
-          <div className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-4 flex flex-col justify-between transition-all hover:bg-slate-50 hover:shadow-sm">
+          <div className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-3.5 flex flex-col justify-between transition-all hover:bg-slate-50 hover:shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Invoices</span>
-              <div className="w-8 h-8 rounded-full bg-blue-100/80 flex items-center justify-center text-blue-600">
-                <FileText className="w-4 h-4" />
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Invoices</span>
+              <div className="w-7 h-7 rounded-full bg-blue-100/80 flex items-center justify-center text-blue-600">
+                <FileText className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-bold text-slate-900 tracking-tight">
-                {loading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : summaryData.totalInvoices}
+            <div className="mt-2.5">
+              <div className="text-xl font-bold text-slate-900 tracking-tight">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /> : summaryData.totalInvoices}
               </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">Within selected range</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Within selected range</p>
             </div>
           </div>
 
           {/* Card 2: Dispatched Invoices */}
-          <div className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-4 flex flex-col justify-between transition-all hover:bg-slate-50 hover:shadow-sm">
+          <div className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-3.5 flex flex-col justify-between transition-all hover:bg-slate-50 hover:shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Dispatched Invoices</span>
-              <div className="w-8 h-8 rounded-full bg-emerald-100/80 flex items-center justify-center text-emerald-600">
-                <Truck className="w-4 h-4" />
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Dispatched Invoices</span>
+              <div className="w-7 h-7 rounded-full bg-emerald-100/80 flex items-center justify-center text-emerald-600">
+                <Truck className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-bold text-slate-900 tracking-tight">
-                {loading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : summaryData.dispatchedInvoices}
+            <div className="mt-2.5">
+              <div className="text-xl font-bold text-slate-900 tracking-tight">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /> : summaryData.dispatchedInvoices}
               </div>
-              <p className="text-[11px] text-emerald-600 font-medium mt-0.5">In Transit / Delivered / Closed</p>
+              <p className="text-[10px] text-emerald-600 font-medium mt-0.5">In Transit / Delivered / Closed</p>
             </div>
           </div>
 
           {/* Card 3: Pending Dispatches */}
-          <div className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-4 flex flex-col justify-between transition-all hover:bg-slate-50 hover:shadow-sm">
+          <div className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-3.5 flex flex-col justify-between transition-all hover:bg-slate-50 hover:shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Dispatches</span>
-              <div className="w-8 h-8 rounded-full bg-amber-100/80 flex items-center justify-center text-amber-600">
-                <Clock className="w-4 h-4" />
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pending Dispatches</span>
+              <div className="w-7 h-7 rounded-full bg-amber-100/80 flex items-center justify-center text-amber-600">
+                <Clock className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-bold text-slate-900 tracking-tight">
-                {loading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : summaryData.pendingDispatches}
+            <div className="mt-2.5">
+              <div className="text-xl font-bold text-slate-900 tracking-tight">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /> : summaryData.pendingDispatches}
               </div>
-              <p className="text-[11px] text-amber-600 font-medium mt-0.5">Awaiting Shipment / Assigned</p>
+              <p className="text-[10px] text-amber-600 font-medium mt-0.5">Awaiting Shipment / Assigned</p>
             </div>
           </div>
 
-          {/* Card 4: Total Dispatched Weight */}
-          <div className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-4 flex flex-col justify-between transition-all hover:bg-slate-50 hover:shadow-sm">
+          {/* Card 4: Pending PODs */}
+          <div className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-3.5 flex flex-col justify-between transition-all hover:bg-slate-50 hover:shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Dispatched Weight</span>
-              <div className="w-8 h-8 rounded-full bg-purple-100/80 flex items-center justify-center text-purple-600">
-                <Weight className="w-4 h-4" />
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pending PODs</span>
+              <div className="w-7 h-7 rounded-full bg-rose-100/80 flex items-center justify-center text-rose-600">
+                <FileText className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-bold text-slate-900 tracking-tight">
-                {loading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : summaryData.totalDispatchedWeightFormatted}
+            <div className="mt-2.5">
+              <div className="text-xl font-bold text-slate-900 tracking-tight">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /> : (summaryData.pendingPODs ?? 0)}
               </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">Cumulative weight</p>
+              <p className="text-[10px] text-rose-600 font-medium mt-0.5">Awaiting POD upload</p>
+            </div>
+          </div>
+
+          {/* Card 5: Total Dispatched Weight */}
+          <div className="bg-slate-50/50 border border-slate-200/80 rounded-lg p-3.5 flex flex-col justify-between transition-all hover:bg-slate-50 hover:shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Dispatched Weight</span>
+              <div className="w-7 h-7 rounded-full bg-purple-100/80 flex items-center justify-center text-purple-600">
+                <Weight className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-xl font-bold text-slate-900 tracking-tight">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /> : summaryData.totalDispatchedWeightFormatted}
+              </div>
+              <p className="text-[10px] text-slate-500 mt-0.5">Cumulative weight</p>
             </div>
           </div>
         </div>

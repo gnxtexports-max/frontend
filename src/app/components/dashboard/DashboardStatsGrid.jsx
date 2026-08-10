@@ -90,6 +90,10 @@ export function DashboardStatsGrid({ onStatClick, stats = [] }) {
                     <span className="text-slate-500 font-sans font-medium">Delivered Weight</span>
                     <span className="font-bold text-slate-900 text-sm">: {stat.deliveredWeightFormatted || (stat.deliveredWeight ? `${stat.deliveredWeight} kg` : "0 kg")}</span>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-amber-600 font-sans font-medium">Pending PODs</span>
+                    <span className="font-bold text-amber-700 text-sm">: {stat.pendingPODs ?? 0}</span>
+                  </div>
                 </div>
               )}
             </div>
