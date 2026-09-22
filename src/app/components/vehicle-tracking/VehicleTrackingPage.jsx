@@ -28,9 +28,10 @@ export function VehicleTrackingPage() {
     try {
       const res = await fetch(`${API_BASE}/shipments?limit=100`, { credentials: "include" });
       const json = await res.json();
-      if (json.success && json.data) {
+      const list = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+      if (list.length > 0) {
         // Find active shipment: not cancelled, and (not closed OR closed without returnedDate)
-        const active = json.data.find(
+        const active = list.find(
           (s) => s.vehicleNumber === vehicleId && s.status !== "Cancelled" && !(s.status === "Closed" && s.returnedDate)
         );
         if (active) {
@@ -38,7 +39,7 @@ export function VehicleTrackingPage() {
           setDispatched(active.status !== "Pending");
         } else {
           // If no active trip, check if there is a recently closed trip for display
-          const recentlyClosed = json.data.find(
+          const recentlyClosed = list.find(
             (s) => s.vehicleNumber === vehicleId && s.status === "Closed"
           );
           setActiveShipment(recentlyClosed || null);

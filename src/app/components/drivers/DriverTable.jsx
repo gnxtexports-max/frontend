@@ -113,7 +113,7 @@ export function DriverTable({
                             {driver.name}
                           </p>
                           <p className="text-[11px] text-muted-foreground">
-                            Age: {driver.age}
+                            {driver.age ? `Age: ${driver.age}` : ""}
                           </p>
                         </div>
                       </div>
@@ -130,19 +130,23 @@ export function DriverTable({
 
                     {/* Phone Number */}
                     <TableCell className="py-3.5">
-                      <a
-                        href={`tel:${driver.phone.replace(/\s/g, "")}`}
-                        className="inline-flex items-center gap-1.5 text-sm text-foreground hover:text-[#1d4ed8] transition-colors"
-                      >
-                        <PhoneIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                        {driver.phone}
-                      </a>
+                      {driver.phone ? (
+                        <a
+                          href={`tel:${driver.phone.replace(/\s/g, "")}`}
+                          className="inline-flex items-center gap-1.5 text-sm text-foreground hover:text-[#1d4ed8] transition-colors"
+                        >
+                          <PhoneIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                          {driver.phone}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50">—</span>
+                      )}
                     </TableCell>
 
                     {/* License */}
                     <TableCell className="py-3.5">
                       <p className="text-sm text-foreground">
-                        {driver.licenseNumber}
+                        {driver.licenseNumber || <span className="text-xs text-muted-foreground/50">—</span>}
                       </p>
                     </TableCell>
 

@@ -30,6 +30,10 @@ export function TripFiltersBar({
   statusCounts,
   vehicles = [],
 }) {
+  const safeVehicles = Array.isArray(vehicles) ? vehicles : [];
+  const safeFiltered = Array.isArray(filteredVehicles) ? filteredVehicles : [];
+  const safeStatusCounts = statusCounts || {};
+
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <div className="relative flex-1 min-w-[240px] max-w-md">
@@ -43,18 +47,18 @@ export function TripFiltersBar({
       </div>
 
       <Select value={statusFilter} onValueChange={setStatusFilter}>
-        <SelectTrigger className="w-[180px] h-9 bg-white border-border">
+        <SelectTrigger className="w-[240px] h-9 bg-white border-border">
           <div className="flex items-center gap-2">
             <Filter className="w-3.5 h-3.5 text-muted-foreground" />
             <SelectValue placeholder="Active Trips" />
           </div>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="active">Active Trips ({statusCounts.all - (statusCounts.Idle || 0)})</SelectItem>
-          <SelectItem value="all">All Statuses ({statusCounts.all})</SelectItem>
-          <SelectItem value="In Transit">In Transit ({statusCounts["In Transit"] || 0})</SelectItem>
-          <SelectItem value="Waiting for Dispatch">Waiting for Dispatch ({statusCounts["Waiting for Dispatch"] || 0})</SelectItem>
-          <SelectItem value="Idle">Idle Fleet ({statusCounts.Idle || 0})</SelectItem>
+          <SelectItem value="active">Active Trips ({safeStatusCounts.all || 0})</SelectItem>
+          <SelectItem value="all">All Statuses ({safeStatusCounts.all || 0})</SelectItem>
+          <SelectItem value="In Transit">In Transit ({safeStatusCounts["In Transit"] || 0})</SelectItem>
+          <SelectItem value="Waiting for Dispatch">Waiting for Dispatch ({safeStatusCounts["Waiting for Dispatch"] || 0})</SelectItem>
+          <SelectItem value="Vehicle Arrival Pending">Vehicle Arrival Pending ({safeStatusCounts["Vehicle Arrival Pending"] || 0})</SelectItem>
         </SelectContent>
       </Select>
 
@@ -125,12 +129,12 @@ export function TripFiltersBar({
               variant="outline"
               className="text-[10px] px-1.5 py-0 border-amber-200 text-amber-700 bg-amber-50"
             >
-              {vehicles.filter((v) => !v.dispatched).length} pending
+              {safeVehicles.filter((v) => !v.dispatched).length} pending
             </Badge>
           )}
         </div>
         <span className="text-xs text-muted-foreground">
-          Showing {filteredVehicles.length} of {vehicles.length}
+          Showing {safeFiltered.length} of {safeVehicles.length}
         </span>
       </div>
     </div>

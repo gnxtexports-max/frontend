@@ -41,17 +41,19 @@ export function VehiclesPage() {
     setLoading(true);
     try {
       const res = await fetch(API_BASE_URL, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch vehicles");
+      if (!res.ok) throw new Error("Failed to fetch vehicles"); 
       const data = await res.json();
-      setVehicles(data);
+      setVehicles(Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : []);
     } catch (error) {
       console.error("Error fetching vehicles:", error);
+      setVehicles([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filtered = vehicles.filter((v) => {
+  const safeVehicles = Array.isArray(vehicles) ? vehicles : [];
+  const filtered = safeVehicles.filter((v) => {
     const matchesSearch =
       (v.vehicleNo || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (v.model || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -64,14 +66,14 @@ export function VehiclesPage() {
     return matchesSearch && matchesStatus && matchesAvail;
   });
 
-  const totalActive = vehicles.filter(
-    (v) => v.status === "Active" || v.status === "In Transit"
+  const totalActive = safeVehicles.filter(
+    (v) => v?.status === "Active" || v?.status === "In Transit"
   ).length;
 
-  const totalIdle = vehicles.filter((v) => v.status === "Idle").length;
+  const totalIdle = safeVehicles.filter((v) => v?.status === "Idle").length;
 
-  const totalMaintenance = vehicles.filter(
-    (v) => v.status === "Maintenance" || v.status === "Breakdown"
+  const totalMaintenance = safeVehicles.filter(
+    (v) => v?.status === "Maintenance" || v?.status === "Breakdown"
   ).length;
 
   // ==================== ADD VEHICLE ====================

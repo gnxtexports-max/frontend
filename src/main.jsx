@@ -107,6 +107,13 @@ socket.on("drivers:changed", async () => {
   window.dispatchEvent(new CustomEvent("api-cache-updated"));
 });
 
+socket.on("supervisors:changed", async () => {
+  console.log("[Socket] supervisors:changed — invalidating cache");
+  await invalidateCachePrefix("supervisors");
+  bustCache();
+  window.dispatchEvent(new CustomEvent("api-cache-updated"));
+});
+
 // Helper to determine sync/action name for queue display
 function getActionName(method, url) {
   const lowercaseUrl = url.toLowerCase();
@@ -128,6 +135,8 @@ function getActionName(method, url) {
     return "Update Vehicle Status";
   } else if (lowercaseUrl.includes("/drivers")) {
     return "Update Driver Status";
+  } else if (lowercaseUrl.includes("/supervisors")) {
+    return method === "POST" ? "Add Supervisor" : method === "DELETE" ? "Delete Supervisor" : "Update Supervisor";
   }
   return action;
 }

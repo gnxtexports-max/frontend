@@ -12,6 +12,7 @@ import {
   Phone,
   Truck,
   MapPin,
+  XCircle
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -24,6 +25,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { Calendar } from "../ui/calendar";
 import {
   Table,
@@ -49,7 +51,7 @@ function formatTime(d) {
 
 function kg(val) {
   if (val == null || val === 0) return "—";
-  return `${val} kg`;
+  return `${Number(val).toLocaleString("en-IN", { maximumFractionDigits: 2 })} kg`;
 }
 
 function InvoicesDropdownCell({ invoices = [] }) {
@@ -81,6 +83,7 @@ function InvoicesDropdownCell({ invoices = [] }) {
 
 export function StatDetailView({
   activeStatView,
+  activeStatSection,
   onBack,
   tableData,
   searchQuery,
@@ -93,6 +96,24 @@ export function StatDetailView({
   setShowHistory,
   onView,
 }) {
+  const isInvoiceView = activeStatSection === "invoice" || [
+    "Total Invoices",
+    "Cancelled Invoices",
+    "Delivered Invoices",
+    "In Transit Invoices",
+    "Pending Invoices",
+    "POD Pending"
+  ].includes(activeStatView);
+
+  const isDespatchView = activeStatSection === "despatch" || [
+    "Despatched Shipments",
+    "Despatched Invoices",
+    "Delivered Consignments",
+    "In Transit Shipments",
+    "POD Pending Shipments",
+    "Active Shipments"
+  ].includes(activeStatView);
+
   return (
     <div className="p-6 md:p-8 w-full space-y-6 h-full flex flex-col">
       <div className="flex items-center gap-4">
@@ -108,7 +129,12 @@ export function StatDetailView({
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[280px] max-w-lg w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search by Shipment ID, Driver, Vehicle, Customer..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9 bg-white border-border" />
+          <Input 
+            placeholder={isInvoiceView ? "Search by Invoice No, Customer, Location..." : "Search by Shipment ID, Driver, Vehicle, Customer..."} 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+            className="pl-9 h-9 bg-white border-border" 
+          />
         </div>
       </div>
 
@@ -117,7 +143,27 @@ export function StatDetailView({
           <Table className="w-full min-w-full">
             <TableHeader>
               <TableRow className="hover:bg-transparent bg-[#fafbfc]">
-                {(activeStatView === "In Transit Shipments" || activeStatView === "Active Shipments") && (
+                {isInvoiceView ? (
+                  <>
+                    <TableHead className="pl-5 w-[16%]">Invoice No.</TableHead>
+                    <TableHead className="w-[14%]">Date</TableHead>
+                    <TableHead className="w-[24%]">Customer</TableHead>
+                    <TableHead className="w-[18%]">Location</TableHead>
+                    <TableHead className="w-[12%]">Weight</TableHead>
+                    <TableHead className="w-[10%]">Status</TableHead>
+                    <TableHead className="w-[12%] pr-5">POD Status</TableHead>
+                  </>
+                ) : isDespatchView ? (
+                  <>
+                    <TableHead className="pl-5 w-[15%]">Shipment ID</TableHead>
+                    <TableHead className="w-[15%]">Dispatched Date</TableHead>
+                    <TableHead className="w-[15%]">Invoices</TableHead>
+                    <TableHead className="w-[20%]">Customer & Location</TableHead>
+                    <TableHead className="w-[10%]">Weight</TableHead>
+                    <TableHead className="w-[13%]">Driver & Vehicle</TableHead>
+                    <TableHead className="w-[12%] pr-5">Status / POD</TableHead>
+                  </>
+                ) : (
                   <>
                     <TableHead className="pl-5 w-[16%]">Shipment ID</TableHead>
                     <TableHead className="w-[18%]">Invoices</TableHead>
@@ -125,34 +171,6 @@ export function StatDetailView({
                     <TableHead className="w-[14%]">Weight</TableHead>
                     <TableHead className="w-[14%]">Driver Info</TableHead>
                     <TableHead className="w-[14%] pr-5">Vehicle Info</TableHead>
-                  </>
-                )}
-                {(activeStatView === "Pending Invoices for Dispatch" || activeStatView === "Pending Dispatch") && (
-                  <>
-                    <TableHead className="pl-5 w-[20%]">Shipment ID</TableHead>
-                    <TableHead className="w-[20%]">Invoices</TableHead>
-                    <TableHead className="w-[30%]">Customer</TableHead>
-                    <TableHead className="w-[15%]">Weight</TableHead>
-                    <TableHead className="w-[15%] pr-5">Status</TableHead>
-                  </>
-                )}
-                {activeStatView === "Cancelled Invoices" && (
-                  <>
-                    <TableHead className="pl-5 w-[18%]">Shipment ID</TableHead>
-                    <TableHead className="w-[14%]">Date</TableHead>
-                    <TableHead className="w-[32%]">Customer</TableHead>
-                    <TableHead className="w-[22%]">Location</TableHead>
-                    <TableHead className="w-[14%] pr-5">Status</TableHead>
-                  </>
-                )}
-                {activeStatView === "Deliveries Today" && (
-                  <>
-                    <TableHead className="pl-5 w-[18%]">Shipment ID</TableHead>
-                    <TableHead className="w-[18%]">Invoices</TableHead>
-                    <TableHead className="w-[26%]">Customer</TableHead>
-                    <TableHead className="w-[12%]">Weight</TableHead>
-                    <TableHead className="w-[13%]">Status</TableHead>
-                    <TableHead className="w-[13%] pr-5">POD Status</TableHead>
                   </>
                 )}
               </TableRow>
@@ -171,96 +189,155 @@ export function StatDetailView({
                 </TableRow>
               ) : (
                 tableData.map((item, idx) => {
-                  const s = item.originalData;
-                  const invoices = item.invoicesList || (item.id ? [item.id] : []);
-                  const weightVal = s?.totalWeightKg ?? item.weight;
+                  if (isInvoiceView) {
+                    const invNumber = item.invoiceNumber || item.id || "—";
+                    const invDate = item.invoiceDate || item.originalDate;
+                    const cust = item.customerName || item.customer || "—";
+                    const loc = item.location || "—";
+                    const w = item.weight || 0;
+                    const status = item.status || "Pending";
 
-                  if (activeStatView === "Cancelled Invoices") {
                     return (
                       <TableRow key={idx} className="group cursor-default">
-                        <TableCell className="pl-5"><span className="font-medium text-[#1d4ed8]">{item.id || "—"}</span></TableCell>
-                        <TableCell><span className="text-xs text-slate-600">{formatDate(item.originalDate)}</span></TableCell>
-                        <TableCell className="text-sm font-semibold text-slate-800">{item.customer || "—"}</TableCell>
-                        <TableCell className="text-sm text-slate-600">{item.location || "—"}</TableCell>
-                        <TableCell className="pr-5"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-700 border border-red-200">Cancelled</span></TableCell>
-                      </TableRow>
-                    );
-                  }
-                  if (activeStatView === "Pending Invoices for Dispatch" || activeStatView === "Pending Dispatch") {
-                    return (
-                      <TableRow key={idx} className="group cursor-default">
-                        <TableCell className="pl-5"><span className="font-medium text-[#1d4ed8]">{item.id || "—"}</span></TableCell>
-                        <TableCell><InvoicesDropdownCell invoices={invoices} /></TableCell>
-                        <TableCell className="text-sm font-semibold text-slate-800">{item.customer || item.destination || "—"}</TableCell>
-                        <TableCell><span className="text-sm text-slate-900 font-medium">{kg(weightVal)}</span></TableCell>
-                        <TableCell className="pr-5">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 text-amber-700 border border-amber-200">
-                            Pending
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  }
-                  if (activeStatView === "In Transit Shipments" || activeStatView === "Active Shipments") {
-                    return (
-                      <TableRow key={idx} className="group cursor-default">
-                        <TableCell className="pl-5"><span className="font-medium text-[#1d4ed8]">{item.id || "—"}</span></TableCell>
-                        <TableCell><InvoicesDropdownCell invoices={invoices} /></TableCell>
-                        <TableCell>
-                          <p className="text-sm text-foreground font-semibold">{item.destination || "—"}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{item.location || s?.destinations?.[0]?.deliveryLocation || ""}</p>
+                        <TableCell className="pl-5">
+                          <span className="font-semibold text-[#1d4ed8]">{invNumber}</span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-sm text-foreground font-medium">{kg(weightVal)}</span>
-                          </div>
+                          <span className="text-xs text-slate-600 font-medium">{formatDate(invDate)}</span>
+                        </TableCell>
+                        <TableCell className="text-sm font-semibold text-slate-800">
+                          {cust}
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-600">
+                          {loc}
                         </TableCell>
                         <TableCell>
-                          <p className="text-sm text-foreground">{item.driver || "—"}</p>
+                          <span className="text-sm text-slate-900 font-medium">{kg(w)}</span>
                         </TableCell>
-                        <TableCell className="pr-5">
-                          <p className="text-sm text-foreground">{item.vehicle || "—"}</p>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  }
-                  if (activeStatView === "Deliveries Today") {
-                    const podUploaded = !!(s?.podFileUrl || s?.destinations?.some(d => d.podFileUrl) || item.podStatus === "Uploaded");
-                    return (
-                      <TableRow key={idx} className="group cursor-default">
-                        <TableCell className="pl-5"><span className="font-medium text-[#1d4ed8]">{item.id || "—"}</span></TableCell>
-                        <TableCell><InvoicesDropdownCell invoices={invoices} /></TableCell>
-                        <TableCell className="text-sm font-semibold text-slate-800">{item.customer || item.destination || "—"}</TableCell>
-                        <TableCell><span className="text-sm text-slate-900 font-medium">{kg(weightVal)}</span></TableCell>
                         <TableCell>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
-                            Delivered
-                          </span>
+                          {status === "Delivered" && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+                              Delivered
+                            </span>
+                          )}
+                          {status === "In Transit" && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-100 text-indigo-700 border border-indigo-200">
+                              In Transit
+                            </span>
+                          )}
+                          {(status === "Pending" || status === "Assigned") && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                              Pending
+                            </span>
+                          )}
+                          {status === "Cancelled" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-700 border border-red-200 cursor-help">
+                                  Cancelled
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p className="text-xs font-medium">
+                                  {item.cancellationReason ? `Reason: ${item.cancellationReason}` : "Reason: Not specified"}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {!["Delivered", "In Transit", "Pending", "Assigned", "Cancelled"].includes(status) && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                              {status}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="pr-5">
-                          {podUploaded ? (
+                          {status === "Cancelled" ? (
+                            <span className="text-xs text-slate-400 font-medium">—</span>
+                          ) : item.podStatus === "Uploaded" || item.hasPod ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <FileCheck className="w-3 h-3 text-emerald-600" />
                               POD Uploaded
                             </span>
-                          ) : (
+                          ) : status === "Delivered" ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                               <Clock className="w-3 h-3 text-amber-600" />
                               POD Pending
                             </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
                           )}
                         </TableCell>
                       </TableRow>
                     );
                   }
+
+                  if (isDespatchView) {
+                    const invoices = item.invoicesList || (item.id ? [item.id] : []);
+                    const dDate = item.dispatchDate || item.originalDate;
+
+                    return (
+                      <TableRow key={idx} className="group cursor-default">
+                        <TableCell className="pl-5">
+                          <span className="font-semibold text-[#1d4ed8]">{item.id || item.shipmentId || "—"}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-slate-600 font-medium">{formatDate(dDate)}</span>
+                        </TableCell>
+                        <TableCell>
+                          <InvoicesDropdownCell invoices={invoices} />
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm text-foreground font-semibold">{item.customer || item.destination || "—"}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{item.location || ""}</p>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-slate-900 font-medium">{kg(item.weight)}</span>
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm text-foreground font-medium">{item.driver || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{item.vehicle || ""}</p>
+                        </TableCell>
+                        <TableCell className="pr-5">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className={cn(
+                              "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border",
+                              item.status === "Delivered" || item.status === "Closed" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                              item.status === "In Transit" ? "bg-indigo-100 text-indigo-700 border-indigo-200" :
+                              "bg-amber-100 text-amber-700 border-amber-200"
+                            )}>
+                              {item.status}
+                            </span>
+                            {item.podStatus === "Uploaded" ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700">
+                                <FileCheck className="w-2.5 h-2.5" /> POD Uploaded
+                              </span>
+                            ) : item.podStatus === "Pending" ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600">
+                                <Clock className="w-2.5 h-2.5" /> POD Pending
+                              </span>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  // Default / Generic view
+                  const s = item.originalData;
+                  const invoices = item.invoicesList || (item.id ? [item.id] : []);
+                  const weightVal = s?.totalWeightKg ?? item.weight;
+
                   return (
                     <TableRow key={idx} className="group cursor-default">
-                      <TableCell className="pl-5"><span className="font-medium text-[#1d4ed8]">{item.id || "—"}</span></TableCell>
-                      <TableCell><p className="text-sm text-foreground">{item.driver || item.customer || "—"}</p></TableCell>
-                      <TableCell className="text-sm text-slate-600">{item.location || item.destination || "—"}</TableCell>
-                      <TableCell><span className="text-sm text-muted-foreground">{formatDate(item.originalDate)}</span></TableCell>
-                      <TableCell><span className="text-sm text-foreground">{item.vehicle || "—"}</span></TableCell>
+                      <TableCell className="pl-5"><span className="font-semibold text-[#1d4ed8]">{item.id || "—"}</span></TableCell>
+                      <TableCell><InvoicesDropdownCell invoices={invoices} /></TableCell>
+                      <TableCell>
+                        <p className="text-sm text-foreground font-semibold">{item.destination || item.customer || "—"}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{item.location || ""}</p>
+                      </TableCell>
+                      <TableCell><span className="text-sm text-slate-900 font-medium">{kg(weightVal)}</span></TableCell>
+                      <TableCell><p className="text-sm text-foreground">{item.driver || "—"}</p></TableCell>
+                      <TableCell className="pr-5"><p className="text-sm text-foreground">{item.vehicle || "—"}</p></TableCell>
                     </TableRow>
                   );
                 })
@@ -272,4 +349,5 @@ export function StatDetailView({
     </div>
   );
 }
+
 export default StatDetailView;

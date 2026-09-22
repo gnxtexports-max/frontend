@@ -12,7 +12,7 @@ import {
 import PlantRow from "./PlantRow";
 
 export function InvoiceTable({
-  invoices,
+  invoices = [],
   loading,
   currentPage,
   totalPages,
@@ -24,6 +24,7 @@ export function InvoiceTable({
   canEdit,
   canDelete,
 }) {
+  const safeInvoices = Array.isArray(invoices) ? invoices : [];
   const tableContainerRef = useRef(null);
   const scrollbarRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -183,10 +184,10 @@ export function InvoiceTable({
           </div>
         )}
 
-        <Table>
-          <TableHeader className="bg-muted/50 sticky top-0 z-10">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="w-8 pl-4" />
+        <Table className="w-full border-collapse">
+          <TableHeader className="sticky top-0 z-20 bg-slate-50 [&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:bg-slate-50 [&_th]:border-b [&_th]:border-border shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+            <TableRow className="hover:bg-transparent bg-slate-50 border-b">
+              <TableHead className="w-8 pl-4"> </TableHead>
               <TableHead>Plant No.</TableHead>
               <TableHead>Customer Name</TableHead>
               <TableHead>Location</TableHead>
@@ -198,23 +199,24 @@ export function InvoiceTable({
               <TableHead>Qty</TableHead>
               <TableHead>Weight</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>POD Status</TableHead>
               <TableHead>Before Dispatch Remarks</TableHead>
               <TableHead>After Dispatch Remarks</TableHead>
               <TableHead>Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.length === 0 && !loading ? (
+            {safeInvoices.length === 0 && !loading ? (
               <TableRow>
                 <TableCell
-                  colSpan={15}
+                  colSpan={16}
                   className="h-[300px] text-center"
                 >
                   No invoices found
                 </TableCell>
               </TableRow>
             ) : (
-              invoices.map((plant) => (
+              safeInvoices.map((plant) => (
                 <PlantRow
                   key={plant._id}
                   plant={plant}

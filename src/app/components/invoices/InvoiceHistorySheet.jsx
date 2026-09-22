@@ -173,10 +173,10 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
                 <Loader2 className="w-6 h-6 animate-spin text-[#1d4ed8]" />
               </div>
             )}
-            <Table className="min-w-[950px]">
-              <TableHeader className="bg-slate-50/50 sticky top-0 z-10">
-                <TableRow>
-                  <TableHead className="w-8 pl-4" />
+            <Table className="w-full border-collapse">
+              <TableHeader className="sticky top-0 z-20 bg-slate-50 [&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:bg-slate-50 [&_th]:border-b [&_th]:border-border shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                <TableRow className="hover:bg-transparent bg-slate-50 border-b">
+                  <TableHead className="w-8 pl-4"> </TableHead>
                   <TableHead>Plant No.</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Location</TableHead>
@@ -200,7 +200,7 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
 
                     return (
                       <React.Fragment key={plant._id}>
-                        <TableRow 
+                        <TableRow
                           className="hover:bg-muted/10 transition-colors cursor-pointer"
                           onClick={() => hasInvoices && toggleRow(plant._id)}
                         >
@@ -236,30 +236,30 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
                               : (plant.deliveredAt ? new Date(plant.deliveredAt).toLocaleString("en-IN") : "—")}
                           </TableCell>
                           <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
-                             {plant.status === "Cancelled" ? (
-                               <Button
-                                 variant="outline"
-                                 size="sm"
-                                 className="h-7 text-[10px] font-semibold bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-2 rounded-md inline-flex items-center gap-1"
-                                 onClick={async () => {
-                                   const confirmReturn = window.confirm(`Are you sure you want to return all ${plant.invoices?.length || 0} invoices for Plant ${plant.plantNumber}?`);
-                                   if (!confirmReturn) return;
-                                   let anySuccess = false;
-                                   for (const inv of plant.invoices || []) {
-                                     const ok = await handleReturnInvoice(inv._id);
-                                     if (ok) anySuccess = true;
-                                   }
-                                   if (anySuccess) {
-                                     fetchHistory(searchQuery, currentPage);
-                                   }
-                                 }}
-                               >
-                                 <CornerUpLeft className="w-3 h-3" />
-                                 Return All
-                               </Button>
-                             ) : (
-                               <span className="text-xs text-muted-foreground">—</span>
-                             )}
+                            {plant.status === "Cancelled" ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[10px] font-semibold bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-2 rounded-md inline-flex items-center gap-1"
+                                onClick={async () => {
+                                  const confirmReturn = window.confirm(`Are you sure you want to return all ${plant.invoices?.length || 0} invoices for Plant ${plant.plantNumber}?`);
+                                  if (!confirmReturn) return;
+                                  let anySuccess = false;
+                                  for (const inv of plant.invoices || []) {
+                                    const ok = await handleReturnInvoice(inv._id);
+                                    if (ok) anySuccess = true;
+                                  }
+                                  if (anySuccess) {
+                                    fetchHistory(searchQuery, currentPage);
+                                  }
+                                }}
+                              >
+                                <CornerUpLeft className="w-3 h-3" />
+                                Return All
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                         </TableRow>
 
@@ -310,7 +310,7 @@ export function InvoiceHistorySheet({ open, onOpenChange }) {
             <div ref={sentinelRef} className="h-px w-full" />
           </div>
 
-         {/* {showStickyScrollbar && (
+          {/* {showStickyScrollbar && (
             <div
               ref={scrollbarRef}
               onScroll={handleScrollbarScroll}

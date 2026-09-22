@@ -1,4 +1,4 @@
-import { FileText, Upload, Loader2, Plus, Truck, MapPin, Car } from "lucide-react";
+import { FileText, Upload, Loader2, Plus, Truck, MapPin, Car, Download } from "lucide-react";
 import { Button as ButtonUI } from "../ui/button";
 import { Link } from "react-router";
 
@@ -6,7 +6,9 @@ import { Link } from "react-router";
 export function InvoiceHeader({
   total,
   uploading,
+  exporting,
   onFileUpload,
+  onExportClick,
   onHistoryClick,
   onAddClick,
   canCreate,
@@ -99,6 +101,20 @@ export function InvoiceHeader({
             </div>
           </label>
         )}
+
+        <ButtonUI
+          onClick={onExportClick}
+          disabled={exporting}
+          variant="outline"
+          className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 flex items-center gap-1.5"
+        >
+          {exporting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 text-emerald-600" />
+          )}
+          Export Excel
+        </ButtonUI>
 
         <ButtonUI onClick={onHistoryClick} variant="outline" className="border-border">
           History

@@ -66,6 +66,16 @@ export const statusStyles = {
     text: "text-amber-700",
     dot: "bg-amber-500 animate-pulse",
   },
+  "Vehicle Arrival": {
+    bg: "bg-purple-50 border-purple-200",
+    text: "text-purple-700",
+    dot: "bg-purple-500 animate-pulse",
+  },
+  "Vehicle Arrival Pending": {
+    bg: "bg-purple-50 border-purple-200",
+    text: "text-purple-700",
+    dot: "bg-purple-500 animate-pulse",
+  },
   Driving: {
     bg: "bg-emerald-50 border-emerald-200",
     text: "text-emerald-700",

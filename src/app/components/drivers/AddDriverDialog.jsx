@@ -19,7 +19,6 @@ import {
 import { Users, PhoneIcon, Loader2 } from "lucide-react";
 
 const PHONE_REGEX = /^\+?[0-9\s-()]{10,}$/;
-const LICENSE_REGEX = /^[A-Z]{2}-[0-9]{1,2}-[A-Z]{2}-[0-9]{4,7}$/;
 
 export function AddDriverDialog({
   open,
@@ -43,12 +42,12 @@ export function AddDriverDialog({
   useEffect(() => {
     if (editingDriver) {
       setFormData({
-        driverType: editingDriver.driverType,
-        name: editingDriver.name,
-        age: editingDriver.age,
-        phone: editingDriver.phone,
-        licenseNumber: editingDriver.licenseNumber,
-        tripStatus: editingDriver.tripStatus,
+        driverType: editingDriver.driverType || "",
+        name: editingDriver.name || "",
+        age: editingDriver.age ?? "",
+        phone: editingDriver.phone || "",
+        licenseNumber: editingDriver.licenseNumber || "",
+        tripStatus: editingDriver.tripStatus || "Idle",
       });
     } else {
       setFormData({
@@ -66,26 +65,20 @@ export function AddDriverDialog({
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.driverType.trim()) {
+    if (!formData.driverType?.trim()) {
       newErrors.driverType = "Driver type is required";
     }
 
-    if (!formData.name.trim()) {
+    if (!formData.name?.trim()) {
       newErrors.name = "Driver name is required";
     }
 
-    if (!formData.age || formData.age < 18 || formData.age > 65) {
+    if (formData.age && (Number(formData.age) < 18 || Number(formData.age) > 65)) {
       newErrors.age = "Age must be between 18 and 65";
     }
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
-    } else if (!PHONE_REGEX.test(formData.phone)) {
+    if (formData.phone && formData.phone.trim() && !PHONE_REGEX.test(formData.phone.trim())) {
       newErrors.phone = "Invalid phone number format";
-    }
-
-    if (!formData.licenseNumber.trim()) {
-      newErrors.licenseNumber = "License number is required";
     }
 
     setErrors(newErrors);
@@ -97,11 +90,20 @@ export function AddDriverDialog({
 
     setIsSubmitting(true);
     try {
+      const payload = {
+        driverType: formData.driverType?.trim() || "",
+        name: formData.name?.trim() || "",
+        age: formData.age !== "" && formData.age !== null && formData.age !== undefined ? formData.age : "",
+        phone: formData.phone?.trim() || "",
+        licenseNumber: formData.licenseNumber?.trim() || "",
+        tripStatus: formData.tripStatus || "Idle",
+      };
+
       let success;
       if (editingDriver) {
-        success = await onUpdateDriver(editingDriver._id, formData);
+        success = await onUpdateDriver(editingDriver._id, payload);
       } else {
-        success = await onAddDriver(formData);
+        success = await onAddDriver(payload);
       }
 
       if (success) {
@@ -196,7 +198,7 @@ export function AddDriverDialog({
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                Age <span className="text-red-500">*</span>
+                Age 
               </Label>
               <Input
                 placeholder="e.g. 35"
@@ -221,7 +223,7 @@ export function AddDriverDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                Mobile Number <span className="text-red-500">*</span>
+                Mobile Number
               </Label>
               <div className="relative">
                 <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -242,10 +244,10 @@ export function AddDriverDialog({
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                License Number <span className="text-red-500">*</span>
+                License Number
               </Label>
               <Input
-                placeholder="e.g. MH-14-AB-1234567"
+                placeholder="e.g. KL12 20110003456"
                 value={formData.licenseNumber}
                 onChange={(e) =>
                   setFormData({ ...formData, licenseNumber: e.target.value })

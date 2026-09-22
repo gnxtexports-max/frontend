@@ -82,11 +82,12 @@ export function getPODConfig(shipment) {
 
   // Count how many destinations have uploaded/submitted POD (images are required for proof!)
   let signedCount = destinations.filter((d) =>
-    d.podImages && d.podImages.length > 0
+    Array.isArray(d.podImages) && d.podImages.length > 0
   ).length;
 
-  // Fallback for older single-destination shipments where podImages was stored at the top level
-  if (signedCount === 0 && shipment.podImages && shipment.podImages.length > 0) {
+  // Fallback ONLY for legacy shipments that have no destination-level podImages property initialized at all
+  const hasDestPodProp = destinations.some((d) => d.podImages !== undefined);
+  if (!hasDestPodProp && signedCount === 0 && Array.isArray(shipment.podImages) && shipment.podImages.length > 0) {
     signedCount = total;
   }
 

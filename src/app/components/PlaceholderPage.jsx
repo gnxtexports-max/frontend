@@ -9,6 +9,7 @@ import {
   Settings,
   HelpCircle,
   Construction,
+  UserCheck,
 } from "lucide-react";
 
 const pageConfig = {
@@ -39,6 +40,11 @@ const pageConfig = {
     title: "Driver Management",
     description: "Driver roster, assignment status, and performance records.",
     icon: <Users className="w-8 h-8" />,
+  },
+  "/supervisors": {
+    title: "Supervisor Management",
+    description: "Supervisor roster, employee ID assignments, and operations oversight.",
+    icon: <UserCheck className="w-8 h-8" />,
   },
   "/reports": {
     title: "Reports",

@@ -126,26 +126,38 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEd
           <StatusBadge status={first?.status || plant.status} isDelayed={isPendingDelayed} cancellationReason={first?.cancellationReason} />
         </TableCell>
 
-        <TableCell onClick={(e) => e.stopPropagation()}>
-          {first && (
-            <RemarkCell
-              invoiceId={first._id}
-              field="beforeDispatchRemarks"
-              initialValue={first.beforeDispatchRemarks}
-              canEdit={canEdit}
-            />
-          )}
+        <TableCell>
+          <PodStatusBadge podStatus={first?.podStatus || plant.podStatus} />
         </TableCell>
 
         <TableCell onClick={(e) => e.stopPropagation()}>
-          {first && (
-            <RemarkCell
-              invoiceId={first._id}
-              field="afterDispatchRemarks"
-              initialValue={first.afterDispatchRemarks}
-              canEdit={canEdit}
-            />
-          )}
+          {first && (() => {
+            const { editable, reason } = checkBeforeRemarksEditable(first, canEdit);
+            return (
+              <RemarkCell
+                invoiceId={first._id}
+                field="beforeDispatchRemarks"
+                initialValue={first.beforeDispatchRemarks}
+                isEditable={editable}
+                restrictionReason={reason}
+              />
+            );
+          })()}
+        </TableCell>
+
+        <TableCell onClick={(e) => e.stopPropagation()}>
+          {first && (() => {
+            const { editable, reason } = checkAfterRemarksEditable(first, canEdit);
+            return (
+              <RemarkCell
+                invoiceId={first._id}
+                field="afterDispatchRemarks"
+                initialValue={first.afterDispatchRemarks}
+                isEditable={editable}
+                restrictionReason={reason}
+              />
+            );
+          })()}
         </TableCell>
 
         <TableCell onClick={(e) => e.stopPropagation()}>
@@ -235,22 +247,38 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEd
               <StatusBadge status={inv.status} cancellationReason={inv.cancellationReason} />
             </TableCell>
 
-            <TableCell onClick={(e) => e.stopPropagation()}>
-              <RemarkCell
-                invoiceId={inv._id}
-                field="beforeDispatchRemarks"
-                initialValue={inv.beforeDispatchRemarks}
-                canEdit={canEdit}
-              />
+            <TableCell>
+              <PodStatusBadge podStatus={inv.podStatus} />
             </TableCell>
 
             <TableCell onClick={(e) => e.stopPropagation()}>
-              <RemarkCell
-                invoiceId={inv._id}
-                field="afterDispatchRemarks"
-                initialValue={inv.afterDispatchRemarks}
-                canEdit={canEdit}
-              />
+              {(() => {
+                const { editable, reason } = checkBeforeRemarksEditable(inv, canEdit);
+                return (
+                  <RemarkCell
+                    invoiceId={inv._id}
+                    field="beforeDispatchRemarks"
+                    initialValue={inv.beforeDispatchRemarks}
+                    isEditable={editable}
+                    restrictionReason={reason}
+                  />
+                );
+              })()}
+            </TableCell>
+
+            <TableCell onClick={(e) => e.stopPropagation()}>
+              {(() => {
+                const { editable, reason } = checkAfterRemarksEditable(inv, canEdit);
+                return (
+                  <RemarkCell
+                    invoiceId={inv._id}
+                    field="afterDispatchRemarks"
+                    initialValue={inv.afterDispatchRemarks}
+                    isEditable={editable}
+                    restrictionReason={reason}
+                  />
+                );
+              })()}
             </TableCell>
 
             <TableCell onClick={(e) => e.stopPropagation()}>
@@ -287,7 +315,39 @@ export function PlantRow({ plant, onDeleted, onStatusUpdated, onEditClick, canEd
   );
 }
 
-function RemarkCell({ invoiceId, field, initialValue, canEdit }) {
+const checkBeforeRemarksEditable = (inv, canEditGlobal) => {
+  if (!canEditGlobal) return { editable: false, reason: "You do not have permission to edit invoices." };
+  const status = inv.status;
+  if (status === "Cancelled" || status === "In Transit" || status === "Delivered") {
+    return { editable: false, reason: "Before Dispatch Remarks can only be edited before dispatch (up to 24h after assignment)." };
+  }
+  if (status === "Assigned") {
+    const assignedTime = inv.assignedAt ? new Date(inv.assignedAt).getTime() : (inv.updatedAt ? new Date(inv.updatedAt).getTime() : null);
+    if (assignedTime && Date.now() - assignedTime > 24 * 60 * 60 * 1000) {
+      return { editable: false, reason: "The 24-hour editing window after assignment has expired." };
+    }
+  }
+  return { editable: true, reason: "" };
+};
+
+const checkAfterRemarksEditable = (inv, canEditGlobal) => {
+  if (!canEditGlobal) return { editable: false, reason: "You do not have permission to edit invoices." };
+  const status = inv.status;
+  if (status === "Cancelled") {
+    return { editable: false, reason: "After Dispatch Remarks cannot be edited for cancelled invoices." };
+  }
+  const inTransitTime = inv.inTransitAt ? new Date(inv.inTransitAt).getTime() : (
+    (status === "In Transit" || status === "Delivered") && inv.updatedAt ? new Date(inv.updatedAt).getTime() : null
+  );
+  if (inTransitTime) {
+    if (Date.now() - inTransitTime > 7 * 24 * 60 * 60 * 1000) {
+      return { editable: false, reason: "The 7-day editing window after dispatch (In Transit) has expired." };
+    }
+  }
+  return { editable: true, reason: "" };
+};
+
+function RemarkCell({ invoiceId, field, initialValue, isEditable, restrictionReason }) {
   const [value, setValue] = useState(initialValue || "");
   const [tempValue, setTempValue] = useState(initialValue || "");
   const [isOpen, setIsOpen] = useState(false);
@@ -317,7 +377,8 @@ function RemarkCell({ invoiceId, field, initialValue, canEdit }) {
         setValue(tempValue);
         setIsOpen(false);
       } else {
-        console.error("Failed to save remark: response not ok");
+        const data = await response.json();
+        alert(data?.message || "Failed to save remark");
       }
     } catch (err) {
       console.error("Failed to save remark", err);
@@ -333,12 +394,17 @@ function RemarkCell({ invoiceId, field, initialValue, canEdit }) {
       {/* Clickable summary block */}
       <div
         onClick={handleOpen}
-        className="cursor-pointer max-w-[150px] text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all font-medium truncate select-none text-slate-700 bg-white shadow-sm flex items-center justify-between gap-1.5"
+        title={!isEditable && restrictionReason ? restrictionReason : undefined}
+        className={`cursor-pointer max-w-[150px] text-xs px-2.5 py-1.5 rounded-lg border transition-all font-medium truncate select-none shadow-sm flex items-center justify-between gap-1.5 ${
+          isEditable
+            ? "border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 bg-white"
+            : "border-slate-200/80 bg-slate-50 text-slate-500 hover:bg-slate-100/60"
+        }`}
       >
         <span className={value ? "truncate flex-1" : "text-slate-400 italic flex-1"}>
-          {value || "Add remark..."}
+          {value || (isEditable ? "Add remark..." : "No remarks")}
         </span>
-        {canEdit ? (
+        {isEditable ? (
           <Edit2 className="w-2.5 h-2.5 text-slate-400 shrink-0" />
         ) : (
           <Eye className="w-2.5 h-2.5 text-slate-400 shrink-0" />
@@ -350,17 +416,27 @@ function RemarkCell({ invoiceId, field, initialValue, canEdit }) {
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-800">{displayTitle}</DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              {canEdit ? "Update the remark for this invoice." : "View the remark for this invoice."}
+              {isEditable ? "Update the remark for this invoice." : (restrictionReason || "View the remark for this invoice.")}
             </DialogDescription>
           </DialogHeader>
 
+          {!isEditable && restrictionReason && (
+            <div className="bg-amber-50/80 border border-amber-200/80 rounded-lg p-2.5 mt-2 text-xs text-amber-800">
+              {restrictionReason}
+            </div>
+          )}
+
           <div className="my-4">
             <Textarea
-              placeholder={canEdit ? "Type your remark here..." : "No remarks entered."}
+              placeholder={isEditable ? "Type your remark here..." : "No remarks entered."}
               value={tempValue}
               onChange={(e) => setTempValue(e.target.value)}
-              disabled={!canEdit || isSaving}
-              className="min-h-[120px] text-sm resize-none bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl"
+              disabled={!isEditable || isSaving}
+              className={`min-h-[120px] text-sm resize-none rounded-xl ${
+                isEditable
+                  ? "bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white"
+                  : "bg-slate-100/70 border-slate-200 text-slate-700 cursor-not-allowed"
+              }`}
             />
           </div>
 
@@ -372,9 +448,9 @@ function RemarkCell({ invoiceId, field, initialValue, canEdit }) {
               className="text-xs font-semibold text-slate-600 hover:text-slate-800 border-slate-200 rounded-lg px-4"
               disabled={isSaving}
             >
-              {canEdit ? "Cancel" : "Close"}
+              {isEditable ? "Cancel" : "Close"}
             </Button>
-            {canEdit && (
+            {isEditable && (
               <Button
                 size="sm"
                 onClick={handleSave}
@@ -388,6 +464,30 @@ function RemarkCell({ invoiceId, field, initialValue, canEdit }) {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function PodStatusBadge({ podStatus }) {
+  let style = "bg-slate-50 text-slate-600 border-slate-200";
+  let raw = podStatus || "Not Generated";
+  let label = raw.replace(/^POD\s+/i, "");
+
+  if (label === "Received" || raw === "POD Received") {
+    style = "bg-emerald-50 text-emerald-700 border-emerald-200";
+    label = "Received";
+  } else if (label === "Pending" || raw === "POD Pending") {
+    style = "bg-amber-50 text-amber-700 border-amber-200";
+    label = "Pending";
+  } else {
+    style = "bg-slate-50 text-slate-600 border-slate-200";
+    label = "Not Generated";
+  }
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${style}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      {label}
+    </span>
   );
 }
 

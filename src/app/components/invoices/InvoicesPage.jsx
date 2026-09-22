@@ -41,6 +41,7 @@ export function InvoicesPage() {
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -51,6 +52,7 @@ export function InvoicesPage() {
 
   // Manual Add Invoice modal states
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [modalError, setModalError] = useState("");
   const [newInvoiceData, setNewInvoiceData] = useState({
     plantNumber: "",
     customerName: "",
@@ -75,6 +77,7 @@ export function InvoicesPage() {
 
   const handleEditClick = (invoice) => {
     setEditingInvoice(invoice);
+    setModalError("");
     setNewInvoiceData({
       plantNumber: invoice.plantReferenceNumber || invoice.plantNumber || "",
       customerName: invoice.customerName || "",
@@ -124,7 +127,7 @@ export function InvoicesPage() {
         throw new Error(result?.message || `Failed to fetch invoices (${res.status})`);
       }
 
-      const rawData = result.data || [];
+      const rawData = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
       const sortedData = [...rawData].map((group) => {
         if (group.invoices && Array.isArray(group.invoices)) {
           group.invoices.sort((a, b) => {
@@ -265,8 +268,64 @@ export function InvoicesPage() {
   const handleAddInvoice = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setModalError("");
     setError("");
     setSuccess("");
+
+    const targetPlantNo = (newInvoiceData.plantNumber || "").trim();
+    const targetInvoiceNo = (newInvoiceData.invoiceNumber || "").trim();
+
+    if (!targetPlantNo) {
+      setModalError("Please enter a valid Plant Number");
+      setSubmitting(false);
+      return;
+    }
+
+    if (!targetInvoiceNo) {
+      setModalError("Please enter a valid Invoice Number");
+      setSubmitting(false);
+      return;
+    }
+
+    // Client-side duplicate check against active invoices
+    if (!editingInvoice) {
+      const isPlantDuplicate = invoices.some(p => String(p.plantNumber || "").trim().toLowerCase() === targetPlantNo.toLowerCase());
+      if (isPlantDuplicate) {
+        setModalError(`Plant Number "${targetPlantNo}" already exists. Duplicate plant numbers are not allowed.`);
+        setSubmitting(false);
+        return;
+      }
+      const isInvoiceDuplicate = invoices.some(p =>
+        p.invoices?.some(inv => String(inv.invoiceNumber || "").trim().toLowerCase() === targetInvoiceNo.toLowerCase())
+      );
+      if (isInvoiceDuplicate) {
+        setModalError(`Invoice Number "${targetInvoiceNo}" already exists. Duplicate invoice numbers are not allowed.`);
+        setSubmitting(false);
+        return;
+      }
+    } else {
+      const isPlantDuplicate = invoices.some(p =>
+        String(p.plantNumber || "").trim().toLowerCase() === targetPlantNo.toLowerCase() &&
+        p._id !== editingInvoice._id &&
+        !p.invoices?.some(inv => inv._id === editingInvoice._id)
+      );
+      if (isPlantDuplicate) {
+        setModalError(`Plant Number "${targetPlantNo}" is already in use by another invoice. Duplicate plant numbers are not allowed.`);
+        setSubmitting(false);
+        return;
+      }
+      const isInvoiceDuplicate = invoices.some(p =>
+        p.invoices?.some(inv =>
+          String(inv.invoiceNumber || "").trim().toLowerCase() === targetInvoiceNo.toLowerCase() &&
+          inv._id !== editingInvoice._id
+        )
+      );
+      if (isInvoiceDuplicate) {
+        setModalError(`Invoice Number "${targetInvoiceNo}" is already in use by another invoice. Duplicate invoice numbers are not allowed.`);
+        setSubmitting(false);
+        return;
+      }
+    }
 
     try {
       const url = editingInvoice
@@ -289,6 +348,7 @@ export function InvoicesPage() {
 
       setSuccess(editingInvoice ? "✅ Invoice updated successfully" : "✅ Invoice added successfully");
       setAddModalOpen(false);
+      setModalError("");
       setNewInvoiceData({
         plantNumber: "",
         customerName: "",
@@ -308,9 +368,73 @@ export function InvoicesPage() {
         setSuccess("");
       }, 4000);
     } catch (err) {
-      setError(err.message);
+      setModalError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({
+        search: searchQuery,
+        status: statusFilter === "All" ? "" : statusFilter,
+        page: 1,
+        limit: 10000,
+        all: "true"
+      });
+      if (fromDate) params.append("fromDate", fromDate);
+      if (toDate) params.append("toDate", toDate);
+
+      const res = await fetch(`${API_BASE_URL}/invoices?${params}`, { credentials: "include" });
+      const result = await res.json();
+
+      if (!res.ok || !result.data) {
+        throw new Error(result.message || "Failed to fetch invoices for export");
+      }
+
+      const exportRows = [];
+      result.data.forEach((group) => {
+        const invoicesList = group.invoices || [];
+        invoicesList.forEach((inv) => {
+          exportRows.push({
+            "Plant Reference Number": group.plantNumber || inv.plantReferenceNumber || "",
+            "Customer Name": group.customerName || inv.customerName || "",
+            "Location": group.location || inv.location || "",
+            "Invoice Number": inv.invoiceNumber || "",
+            "Invoice Date": inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString("en-IN") : "",
+            "Tyres": inv.tyre || 0,
+            "Tubes": inv.tube || 0,
+            "Flaps": inv.flap || 0,
+            "Total Quantity": inv.quantity || 0,
+            "Weight (kg)": inv.weight || 0,
+            "Status": inv.status || group.status || "",
+            "POD Status": (inv.podStatus || group.podStatus || "Not Generated").replace(/^POD\s+/i, ""),
+            "Before Dispatch Remarks": inv.beforeDispatchRemarks || "",
+            "After Dispatch Remarks": inv.afterDispatchRemarks || "",
+          });
+        });
+      });
+
+      if (exportRows.length === 0) {
+        setError("No invoices found to export for the selected filters.");
+        return;
+      }
+
+      const XLSX = await import("xlsx");
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Invoices");
+
+      const fileName = `Invoices_Export_${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } catch (err) {
+      console.error("Export error:", err);
+      setError("Failed to export invoices: " + err.message);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -319,10 +443,13 @@ export function InvoicesPage() {
       <InvoiceHeader
         total={total}
         uploading={uploading}
+        exporting={exporting}
         onFileUpload={handleFileUpload}
+        onExportClick={handleExportExcel}
         onHistoryClick={() => setHistoryOpen(true)}
         onAddClick={() => {
           setEditingInvoice(null);
+          setModalError("");
           setNewInvoiceData({
             plantNumber: "",
             customerName: "",
@@ -384,33 +511,31 @@ export function InvoicesPage() {
               {
                 id: "Invoice Number",
                 label: "Invoice Number",
-                keywords: "Invoice, Invoice No, Invoice Number, Invoice #",
+                keywords: "Invoice, Invoice No, Invoice Number",
               },
               {
                 id: "Invoice Date",
                 label: "Invoice Date",
-                keywords: "Invoice Date, Date, Invoice Dt",
+                keywords: "Invoice Date, Date",
               },
               {
-                id: "Location",
-                label: "Location",
-                keywords: "District, Location, Customer Location, Delivery Location, City, Address",
+                id: "Quantity",
+                label: "Quantity",
+                keywords: "Quantity, Qty, Total Qty",
               },
             ].map((col) => {
-              const isMissing = validationErrorData.missingColumns.includes(col.id);
+              const isMissing = validationErrorData.missingColumns?.includes(col.id);
               return (
                 <div
                   key={col.id}
-                  className={`p-3.5 border rounded-xl flex flex-col justify-between gap-2.5 transition-all ${
+                  className={`p-3 rounded-lg border text-xs flex flex-col justify-between space-y-1.5 ${
                     isMissing
-                      ? "bg-red-50/50 border-red-200 shadow-inner"
-                      : "bg-emerald-50/50 border-emerald-200"
+                      ? "bg-red-100/50 border-red-300 text-red-900"
+                      : "bg-emerald-50/50 border-emerald-200 text-emerald-900"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-semibold ${isMissing ? "text-red-950" : "text-emerald-950"}`}>
-                      {col.label}
-                    </span>
+                  <div className="flex items-center justify-between font-semibold">
+                    <span>{col.label}</span>
                     <span
                       className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${
                         isMissing
@@ -500,6 +625,13 @@ export function InvoicesPage() {
               {editingInvoice ? "Modify the invoice record details below." : "Manually record a new customer invoice record."}
             </DialogDescription>
           </DialogHeader>
+
+          {modalError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-xs flex items-start gap-2 mb-3">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{modalError}</span>
+            </div>
+          )}
 
           <form onSubmit={handleAddInvoice} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 max-h-[60vh] overflow-y-auto pr-1">

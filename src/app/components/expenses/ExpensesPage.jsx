@@ -156,21 +156,26 @@ export function ExpensesPage() {
     const groupedMap = new Map();
     data.forEach((e) => {
       const isMaint = (e.category || "dispatch") === "maintenance";
+      const isMisc = e.category === "miscellaneous";
       const groupKey = isMaint
         ? `maint-${e.vehicleNo || e.vehicleId || e._id}`
+        : isMisc
+        ? `misc-${e._id || e.id || "general"}`
         : (e.tripId || e.lrNumber || `dispatch-${e._id}`);
 
       if (!groupedMap.has(groupKey)) {
-        const totalWeightKg = shipmentWeightMap.get(e.tripId) || 0;
+        const totalWeightKg = shipmentWeightMap.get(e.tripId) || e.weight || 0;
         const customerName = shipmentCustomerMap.get(e.tripId) || "N/A";
 
         groupedMap.set(groupKey, {
           category: e.category || "dispatch",
           tripId: isMaint
             ? (e.vehicleNo || e.vehicleId || "Vehicle Expense")
+            : isMisc
+            ? "Miscellaneous Expense"
             : (e.tripId || e.lrNumber || "Shipment Expense"),
           lrNumber: e.lrNumber || "N/A",
-          driverName: e.driverName || (isMaint ? "N/A" : "Unknown"),
+          driverName: e.driverName || (isMaint || isMisc ? "N/A" : "Unknown"),
           vehicleId: e.vehicleNo || e.vehicleId || "N/A",
           date: e.date,
           status: e.status || "Pending",
@@ -304,6 +309,9 @@ export function ExpensesPage() {
     .reduce((s, e) => s + (e.totalAmount !== undefined ? e.totalAmount : (e.amount || 0)), 0);
   const maintenanceTotal = expenses
     .filter(e => e.category === "maintenance")
+    .reduce((s, e) => s + (e.totalAmount !== undefined ? e.totalAmount : (e.amount || 0)), 0);
+  const miscTotal = expenses
+    .filter(e => e.category === "miscellaneous")
     .reduce((s, e) => s + (e.totalAmount !== undefined ? e.totalAmount : (e.amount || 0)), 0);
 
   const getAmountByType = (type) => {
@@ -475,7 +483,12 @@ export function ExpensesPage() {
               if (filterExpenseType !== "all" && item.expenseType !== filterExpenseType) return;
 
               flattenedRows.push({
-                "Expense Category": group.category === "maintenance" ? "Maintenance" : "Dispatch",
+                "Expense Category":
+                  group.category === "maintenance"
+                    ? "Maintenance"
+                    : group.category === "miscellaneous"
+                    ? "Miscellaneous"
+                    : "Dispatch",
                 "Trip / Vehicle ID": group.tripId || "N/A",
                 "LR Number": expense.lrNumber || "N/A",
                 "Vehicle No": group.vehicleId || expense.vehicleNo || "N/A",
@@ -493,7 +506,12 @@ export function ExpensesPage() {
             });
           } else {
             flattenedRows.push({
-              "Expense Category": group.category === "maintenance" ? "Maintenance" : "Dispatch",
+              "Expense Category":
+                group.category === "maintenance"
+                  ? "Maintenance"
+                  : group.category === "miscellaneous"
+                  ? "Miscellaneous"
+                  : "Dispatch",
               "Trip / Vehicle ID": group.tripId || "N/A",
               "LR Number": expense.lrNumber || "N/A",
               "Vehicle No": group.vehicleId || expense.vehicleNo || "N/A",
@@ -617,8 +635,8 @@ export function ExpensesPage() {
         totalExpenses={totalExpenses}
         dispatchTotal={dispatchTotal}
         maintenanceTotal={maintenanceTotal}
+        miscTotal={miscTotal}
         fuelCost={fuelCost}
-        otherExpenses={otherExpenses}
       />
 
       <ExpenseTable
@@ -644,6 +662,8 @@ export function ExpensesPage() {
         selectedTripIds={selectedTripIds}
         onSelectTrip={handleSelectTrip}
         onToggleSelectAll={handleToggleSelectAll}
+        activeCategory={filterCategory}
+        onCategoryChange={setFilterCategory}
       />
 
       <AddExpenseModal

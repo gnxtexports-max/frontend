@@ -206,13 +206,13 @@ export function DashboardChart({
               <span className="font-bold text-slate-900 text-sm pl-2 shrink-0">: {rangeTotals.pendingDispatches}</span>
             </div>
 
-            {/* Metric 3 */}
-            <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-100 shadow-2xs">
+            {/* Metric 3: Total Range Invoices */}
+            <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50/60 border border-blue-200/80 shadow-2xs">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#3b82f6] shrink-0" />
-                <span className="font-semibold text-slate-700 truncate">Total Invoices</span>
+                <span className="font-bold text-slate-800 truncate">Total Range Invoices</span>
               </div>
-              <span className="font-bold text-slate-900 text-sm pl-2 shrink-0">: {rangeTotals.totalInvoices}</span>
+              <span className="font-extrabold text-[#1d4ed8] text-base pl-2 shrink-0">: {rangeTotals.totalInvoices}</span>
             </div>
 
             {/* Metric 4 */}

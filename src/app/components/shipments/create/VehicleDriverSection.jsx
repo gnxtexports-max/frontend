@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Truck, User, Search, Info, Phone, Check, ChevronsUpDown } from "lucide-react";
+import { Truck, User, Search, Info, Phone, Check, ChevronsUpDown, UserCheck, Sparkles } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Label } from "../../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
@@ -13,13 +13,16 @@ export function VehicleDriverSection({
   vehicleId, setVehicleId,
   vehicleOpen, setVehicleOpen,
   driverId, setDriverId,
+  supervisorId, setSupervisorId,
   vehicles: propVehicles,
   loadingV: propLoadingV,
 }) {
   const [internalVehicles, setInternalVehicles] = useState([]);
-  const [drivers, setDrivers]   = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
   const [internalLoadingV, setInternalLoadingV] = useState(false);
   const [loadingD, setLoadingD] = useState(false);
+  const [loadingS, setLoadingS] = useState(false);
 
   const vehicles = propVehicles !== undefined ? propVehicles : internalVehicles;
   const loadingV = propLoadingV !== undefined ? propLoadingV : internalLoadingV;
@@ -51,8 +54,22 @@ export function VehicleDriverSection({
       .finally(() => setLoadingD(false));
   }, []);
 
+  // Fetch supervisors
+  useEffect(() => {
+    setLoadingS(true);
+    fetch(`${API_BASE_URL}/supervisors?status=Active`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((res) => {
+        const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+        setSupervisors(list);
+      })
+      .catch(() => setSupervisors([]))
+      .finally(() => setLoadingS(false));
+  }, []);
+
   const selectedVehicle = vehicles.find((v) => v._id === vehicleId);
-  const selectedDriver  = drivers.find((d) => d._id === driverId);
+  const selectedDriver = drivers.find((d) => d._id === driverId);
+  const selectedSupervisor = supervisors.find((s) => s._id === supervisorId);
 
   // Only show available vehicles
   const availableVehicles = vehicles.filter((v) =>
@@ -61,12 +78,12 @@ export function VehicleDriverSection({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
         {/* ── Vehicle Column ── */}
-        <div className="space-y-4">
-          <h4 className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <Truck className="w-3.5 h-3.5" /> Vehicle Details
+        <div className="space-y-3.5">
+          <h4 className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2 font-semibold">
+            <Truck className="w-3.5 h-3.5 text-blue-600" /> Vehicle Details
           </h4>
 
           <div className="space-y-1.5">
@@ -145,9 +162,9 @@ export function VehicleDriverSection({
         </div>
 
         {/* ── Driver Column ── */}
-        <div className="space-y-4">
-          <h4 className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <User className="w-3.5 h-3.5" /> Driver Details
+        <div className="space-y-3.5">
+          <h4 className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2 font-semibold">
+            <User className="w-3.5 h-3.5 text-emerald-600" /> Driver Details
           </h4>
 
           <div className="space-y-1.5">
@@ -178,10 +195,60 @@ export function VehicleDriverSection({
           {selectedDriver && (
             <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50/60 border border-emerald-100 rounded-lg">
               <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <span className="text-xs text-emerald-700">{selectedDriver.phone}</span>
+              <span className="text-xs text-emerald-700">{selectedDriver.phone || "No phone number"}</span>
             </div>
           )}
         </div>
+
+        {/* ── Supervisor Column ── */}
+        <div className="space-y-3.5">
+          <h4 className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2 font-semibold">
+            <UserCheck className="w-3.5 h-3.5 text-blue-600" /> Supervisor
+          </h4>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Supervisor</Label>
+            <Select value={supervisorId || "none"} onValueChange={(val) => setSupervisorId(val === "none" ? "" : val)} disabled={loadingS}>
+              <SelectTrigger className="bg-white border-border h-10">
+                <SelectValue placeholder={loadingS ? "Loading..." : "Select Supervisor..."} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">
+                  <span className="text-muted-foreground">No Supervisor Assigned</span>
+                </SelectItem>
+                {supervisors.filter((s) => s && s._id).map((s) => (
+                  <SelectItem key={s._id} value={s._id}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">{s.name}</span>
+                      {s.employeeId && (
+                        <span className="text-xs text-muted-foreground font-mono">
+                          ({s.employeeId})
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedSupervisor && (
+            <div className="flex items-center justify-between gap-1.5 px-3 py-2 bg-blue-50/60 border border-blue-100 rounded-lg">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <UserCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span className="text-xs font-semibold text-blue-900 truncate">
+                  {selectedSupervisor.name}
+                </span>
+              </div>
+              {selectedSupervisor.employeeId && (
+                <span className="text-[11px] font-mono font-medium text-blue-700 bg-blue-100/70 px-1.5 py-0.5 rounded">
+                  {selectedSupervisor.employeeId}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* Validation warnings */}

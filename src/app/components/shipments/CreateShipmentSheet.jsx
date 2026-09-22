@@ -30,11 +30,11 @@ const emptyEntry = () => ({
   customerName: "",
 });
 
-function saveDraft(dealerEntries, vehicleId, driverId) {
+function saveDraft(dealerEntries, vehicleId, driverId, supervisorId) {
   try {
     localStorage.setItem(
       DRAFT_KEY,
-      JSON.stringify({ dealerEntries, vehicleId, driverId, savedAt: new Date().toISOString() })
+      JSON.stringify({ dealerEntries, vehicleId, driverId, supervisorId, savedAt: new Date().toISOString() })
     );
   } catch (_) { }
 }
@@ -55,6 +55,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
   const [vehicleId, setVehicleId] = useState("");
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const [driverId, setDriverId] = useState("");
+  const [supervisorId, setSupervisorId] = useState("");
   const [vehicles, setVehicles] = useState([]);
   const [loadingV, setLoadingV] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -104,6 +105,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
       setDealerEntries(entries.length ? entries : [emptyEntry()]);
       setVehicleId(typeof editShipment.vehicleId === "object" ? editShipment.vehicleId._id : editShipment.vehicleId || "");
       setDriverId(typeof editShipment.driverId === "object" ? editShipment.driverId._id : editShipment.driverId || "");
+      setSupervisorId(typeof editShipment.supervisorId === "object" ? editShipment.supervisorId._id : editShipment.supervisorId || "");
     } else {
       // Restore draft in create mode
       const draft = loadDraft();
@@ -111,6 +113,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
         setDealerEntries(draft.dealerEntries);
         setVehicleId(draft.vehicleId || "");
         setDriverId(draft.driverId || "");
+        setSupervisorId(draft.supervisorId || "");
         setHasDraft(true);
       }
       fetch(`${API_BASE_URL}/shipments/next-id`, { credentials: "include" })
@@ -202,7 +205,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
   };
 
   const handleSaveDraft = () => {
-    saveDraft(dealerEntries, vehicleId, driverId);
+    saveDraft(dealerEntries, vehicleId, driverId, supervisorId);
     setDraftSaved(true);
     setTimeout(() => setDraftSaved(false), 2500);
   };
@@ -210,7 +213,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
   const handleDiscardDraft = () => {
     clearDraft();
     setDealerEntries([emptyEntry()]);
-    setVehicleId(""); setDriverId("");
+    setVehicleId(""); setDriverId(""); setSupervisorId("");
     setHasDraft(false);
   };
 
@@ -260,6 +263,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
         }),
         vehicleId,
         driverId,
+        supervisorId: supervisorId || null,
       };
 
       const url = isEditMode ? `${API_BASE_URL}/shipments/${editShipment._id}` : `${API_BASE_URL}/shipments`;
@@ -415,6 +419,7 @@ export function CreateShipmentSheet({ open, onOpenChange, onCreated, editShipmen
                 vehicleId={vehicleId} setVehicleId={setVehicleId}
                 vehicleOpen={vehicleOpen} setVehicleOpen={setVehicleOpen}
                 driverId={driverId} setDriverId={setDriverId}
+                supervisorId={supervisorId} setSupervisorId={setSupervisorId}
                 vehicles={vehicles} loadingV={loadingV}
               />
             </div>

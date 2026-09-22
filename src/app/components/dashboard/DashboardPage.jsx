@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { format } from "date-fns";
 import axios from "axios";
 import { DashboardHeader } from "./DashboardHeader";
-import { DashboardStatsGrid } from "./DashboardStatsGrid";
-import { DashboardChart } from "./DashboardChart";
+import { InvoiceSummarySection } from "./InvoiceSummarySection";
+import { DespatchSummarySection } from "./DespatchSummarySection";
 import { PendingPODsPanel } from "./PendingPODsPanel";
-import { InvoiceDispatchSummary } from "./InvoiceDispatchSummary";
 import { StatDetailView } from "./StatDetailView";
 import { ViewShipmentSheet } from "../shipments/ViewShipmentSheet";
 import { getPODConfig } from "../shipments/utils/shipmentStyles";
@@ -23,7 +23,11 @@ export function DashboardPage() {
     return new Date().toISOString().split("T")[0];
   };
 
+  const navigate = useNavigate();
   const [activeStatView, setActiveStatView] = useState(null);
+  const [activeStatSection, setActiveStatSection] = useState("default");
+  const [activeStatItems, setActiveStatItems] = useState([]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [podFilter, setPodFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState(undefined);
@@ -32,6 +36,28 @@ export function DashboardPage() {
   const [showHistory, setShowHistory] = useState(true);
   const [viewSheetOpen, setViewSheetOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState(null);
+
+  // Persistent Date States for Invoice Summary: separated draft vs applied
+  const [invoiceDraftFromDate, setInvoiceDraftFromDate] = useState("2026-08-31");
+  const [invoiceDraftToDate, setInvoiceDraftToDate] = useState("2026-09-09");
+  const [invoiceAppliedFromDate, setInvoiceAppliedFromDate] = useState("2026-08-31");
+  const [invoiceAppliedToDate, setInvoiceAppliedToDate] = useState("2026-09-09");
+
+  // Persistent Date States for Despatch Summary: separated draft vs applied
+  const [despatchDraftFromDate, setDespatchDraftFromDate] = useState("2026-08-31");
+  const [despatchDraftToDate, setDespatchDraftToDate] = useState("2026-09-09");
+  const [despatchAppliedFromDate, setDespatchAppliedFromDate] = useState("2026-08-31");
+  const [despatchAppliedToDate, setDespatchAppliedToDate] = useState("2026-09-09");
+
+  const handleCardClick = (title, section = "default", items = []) => {
+    if (title === "Expenses") {
+      navigate("/expenses");
+      return;
+    }
+    setActiveStatView(title);
+    setActiveStatSection(section);
+    setActiveStatItems(items || []);
+  };
 
   // Data states
   const [stats, setStats] = useState([]);
@@ -76,24 +102,37 @@ export function DashboardPage() {
         axios.get(`${API_BASE_URL}/invoices?${cancelledQuery.toString()}`).catch(() => ({ data: { success: false } }))
       ]);
 
-      if (statsRes.data?.success) setStats(statsRes.data.data);
-      if (weeklyRes.data?.success) setWeeklyData(weeklyRes.data.data);
+      if (statsRes.data?.success) {
+        setStats(Array.isArray(statsRes.data.data) ? statsRes.data.data : []);
+      }
+      if (weeklyRes.data?.success) {
+        setWeeklyData(Array.isArray(weeklyRes.data.data) ? weeklyRes.data.data : []);
+      }
 
-      if (shipmentsRes.data?.success) {
-        const shipments = shipmentsRes.data.data;
+      if (shipmentsRes.data?.success || Array.isArray(shipmentsRes.data)) {
+        const shipments = Array.isArray(shipmentsRes.data?.data)
+          ? shipmentsRes.data.data
+          : Array.isArray(shipmentsRes.data)
+          ? shipmentsRes.data
+          : [];
         const active = shipments
-          .filter(s => s.status !== "Delivered" && s.status !== "Cancelled")
+          .filter(s => s && s.status !== "Delivered" && s.status !== "Cancelled")
           .map(formatShipmentForTable);
         const history = shipments
-          .filter(s => ["Delivered", "Cancelled", "Closed"].includes(s.status))
+          .filter(s => s && ["Delivered", "Cancelled", "Closed"].includes(s.status))
           .map(formatShipmentForTable);
 
         setCurrentShipments(active);
         setHistoricalShipments(history);
       }
 
-      if (invoicesRes.data?.success) {
-        const pods = invoicesRes.data.data.map(inv => ({
+      if (invoicesRes.data?.success || Array.isArray(invoicesRes.data)) {
+        const invoiceList = Array.isArray(invoicesRes.data?.data)
+          ? invoicesRes.data.data
+          : Array.isArray(invoicesRes.data)
+          ? invoicesRes.data
+          : [];
+        const pods = invoiceList.map(inv => ({
           id: inv.invoiceNumber,
           dealer: inv.customerName,
           date: new Date(inv.invoiceDate || inv.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }),
@@ -103,8 +142,13 @@ export function DashboardPage() {
         setPendingPODs(pods);
       }
 
-      if (cancelledInvoicesRes.data?.success) {
-        setCancelledInvoices(cancelledInvoicesRes.data.data || []);
+      if (cancelledInvoicesRes.data?.success || Array.isArray(cancelledInvoicesRes.data)) {
+        const cancelledList = Array.isArray(cancelledInvoicesRes.data?.data)
+          ? cancelledInvoicesRes.data.data
+          : Array.isArray(cancelledInvoicesRes.data)
+          ? cancelledInvoicesRes.data
+          : [];
+        setCancelledInvoices(cancelledList);
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -176,143 +220,85 @@ export function DashboardPage() {
   };
 
   let baseData = [];
-  const uniqueShipmentMap = new Map();
-  [...currentShipments, ...historicalShipments].forEach(s => {
-    const key = s.id || s._id;
-    if (key && !uniqueShipmentMap.has(key)) {
-      uniqueShipmentMap.set(key, s);
-    }
-  });
-  const allShipments = Array.from(uniqueShipmentMap.values());
 
-  if (activeStatView === "In Transit Shipments" || activeStatView === "Active Shipments") {
-    baseData = allShipments.filter(s => s.status === "In Transit");
-  } else if (activeStatView === "Pending Invoices for Dispatch" || activeStatView === "Pending Dispatch") {
-    baseData = allShipments.filter(s => s.status === "Pending");
-  } else if (activeStatView === "Cancelled Invoices") {
-    baseData = cancelledInvoices
-      .filter(plant => isToday(plant.cancelledAt || plant.createdAt))
-      .map(plant => ({
-        id: plant.invoices?.[0]?.invoiceNumber || "—",
-        originalDate: plant.cancelledAt || plant.createdAt,
-        customer: plant.customerName,
-        location: plant.location || "—",
-        status: plant.status,
-        allInvoices: plant.invoices,
-        invoicesList: plant.invoices?.map(i => i.invoiceNumber) || []
+  // When card clicked with direct items (from Invoice Summary or Despatch Summary), strictly use those items
+  if (activeStatSection === "invoice" || activeStatSection === "despatch") {
+    baseData = activeStatItems || [];
+  } else if (activeStatItems && activeStatItems.length > 0) {
+    baseData = activeStatItems;
+  } else {
+    const uniqueShipmentMap = new Map();
+    [...currentShipments, ...historicalShipments].forEach(s => {
+      const key = s.id || s._id;
+      if (key && !uniqueShipmentMap.has(key)) {
+        uniqueShipmentMap.set(key, s);
+      }
+    });
+    const allShipments = Array.from(uniqueShipmentMap.values());
+
+    if (activeStatView === "In Transit Shipments" || activeStatView === "Active Shipments" || activeStatView === "In Transit Invoices") {
+      baseData = allShipments.filter(s => s.status === "In Transit");
+    } else if (activeStatView === "Pending Invoices for Dispatch" || activeStatView === "Pending Dispatch" || activeStatView === "Pending Invoices") {
+      baseData = allShipments.filter(s => s.status === "Pending");
+    } else if (activeStatView === "Cancelled Invoices") {
+      baseData = cancelledInvoices
+        .map(plant => ({
+          id: plant.invoices?.[0]?.invoiceNumber || plant.invoiceNumber || "—",
+          invoiceNumber: plant.invoices?.[0]?.invoiceNumber || plant.invoiceNumber || "—",
+          originalDate: plant.cancelledAt || plant.createdAt,
+          invoiceDate: plant.invoiceDate || plant.cancelledAt || plant.createdAt,
+          customerName: plant.customerName,
+          customer: plant.customerName,
+          location: plant.location || "—",
+          status: plant.status,
+          weight: plant.invoices?.[0]?.weight || plant.weight || 0,
+          cancellationReason: plant.invoices?.[0]?.cancellationReason || plant.cancellationReason || "Cancelled",
+          allInvoices: plant.invoices,
+          invoicesList: plant.invoices?.map(i => i.invoiceNumber) || [plant.invoiceNumber].filter(Boolean)
+        }));
+    } else if (activeStatView === "Deliveries Today" || activeStatView === "Delivered Invoices") {
+      baseData = allShipments.filter(s => ["Delivered", "Closed"].includes(s.status)).map(s => ({
+        ...s,
+        customer: s.originalData?.destinations?.[0]?.customerName || s.customer,
+        location: s.originalData?.destinations?.[0]?.deliveryLocation || s.location,
+        weight: s.originalData?.totalWeightKg ?? s.weight,
       }));
-  } else if (activeStatView === "Deliveries Today") {
-    baseData = allShipments.filter(s => {
-      const isDelivered = ["Delivered", "Closed"].includes(s.status);
-      const deliveryDateVal = s.originalData?.deliveryDate || s.originalDate || s.createdAt;
-      return isDelivered && isToday(deliveryDateVal);
-    }).map(s => ({
-      ...s,
-      customer: s.originalData?.destinations?.[0]?.customerName || s.customer,
-      location: s.originalData?.destinations?.[0]?.deliveryLocation || s.location,
-      weight: s.originalData?.totalWeightKg ?? s.weight,
-    }));
-  } else if (activeStatView) {
-    baseData = showHistory ? historicalShipments : currentShipments;
+    } else if (activeStatView === "Pending PODs") {
+      baseData = allShipments.filter(s => {
+        const dests = s.originalData?.destinations || [];
+        return dests.some(d => !d.podImages || d.podImages.length === 0);
+      });
+    } else if (activeStatView === "Total Invoices" || activeStatView === "Search Results") {
+      baseData = allShipments;
+    } else if (activeStatView) {
+      baseData = showHistory ? historicalShipments : currentShipments;
+    }
   }
 
-  // Calculate dynamic stats from table datasets for 100% card-table parity
-  const computeStatsWithTableSync = (rawStats = []) => {
-    if (!rawStats || rawStats.length === 0) return rawStats;
-
-    return rawStats.map(stat => {
-      if (stat.title === "Cancelled Invoices") {
-        const cancelledTodayItems = cancelledInvoices.filter(plant =>
-          isToday(plant.cancelledAt || plant.createdAt)
-        );
-        return {
-          ...stat,
-          value: cancelledTodayItems.length.toString()
-        };
-      }
-
-      if (stat.title === "Deliveries Today") {
-        const deliveredTodayItems = allShipments.filter(s => {
-          const isDelivered = ["Delivered", "Closed"].includes(s.status);
-          const dateVal = s.originalData?.deliveryDate || s.originalDate || s.createdAt;
-          return isDelivered && isToday(dateVal);
-        });
-
-        let totalInvoices = 0;
-        let totalWeight = 0;
-        deliveredTodayItems.forEach(s => {
-          totalWeight += (s.originalData?.totalWeightKg ?? s.weight ?? 0);
-          totalInvoices += (s.invoicesList?.length || 1);
-        });
-
-        return {
-          ...stat,
-          value: deliveredTodayItems.length.toString(),
-          deliveredInvoices: totalInvoices,
-          deliveredWeight: totalWeight,
-          deliveredWeightFormatted: `${totalWeight.toLocaleString("en-IN", { maximumFractionDigits: 2 })} kg`
-        };
-      }
-
-      if (stat.title === "Pending Invoices for Dispatch") {
-        const pendingItems = allShipments.filter(s => s.status === "Pending");
-        let totalInvoices = 0;
-        let totalWeight = 0;
-
-        pendingItems.forEach(s => {
-          totalWeight += (s.originalData?.totalWeightKg ?? s.weight ?? 0);
-          totalInvoices += (s.invoicesList?.length || 1);
-        });
-
-        return {
-          ...stat,
-          value: pendingItems.length.toString(),
-          pendingInvoices: totalInvoices,
-          pendingWeight: totalWeight,
-          pendingWeightFormatted: `${totalWeight.toLocaleString("en-IN", { maximumFractionDigits: 2 })} kg`
-        };
-      }
-
-      if (stat.title === "In Transit Shipments") {
-        const inTransitItems = allShipments.filter(s => s.status === "In Transit");
-        let totalInvoices = 0;
-        let totalWeight = 0;
-        inTransitItems.forEach(s => {
-          totalWeight += (s.originalData?.totalWeightKg ?? s.weight ?? 0);
-          totalInvoices += (s.invoicesList?.length || 1);
-        });
-
-        return {
-          ...stat,
-          value: inTransitItems.length.toString(),
-          inTransitInvoices: totalInvoices,
-          inTransitWeight: totalWeight,
-          inTransitWeightFormatted: `${totalWeight.toLocaleString("en-IN", { maximumFractionDigits: 2 })} kg`
-        };
-      }
-
-      return stat;
-    });
-  };
-
-  const displayStats = computeStatsWithTableSync(stats);
-
-  // Apply search filter
+  // Apply search and filter
   const tableData = baseData.filter((item) => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      (item.id?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.driver?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.vehicle?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.customer?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.location?.toLowerCase().includes(searchQuery.toLowerCase()));
+      !q ||
+      (item.id?.toLowerCase().includes(q)) ||
+      (item.shipmentId?.toLowerCase().includes(q)) ||
+      (item.invoiceNumber?.toLowerCase().includes(q)) ||
+      (item.driver?.toLowerCase().includes(q)) ||
+      (item.vehicle?.toLowerCase().includes(q)) ||
+      (item.customer?.toLowerCase().includes(q)) ||
+      (item.customerName?.toLowerCase().includes(q)) ||
+      (item.location?.toLowerCase().includes(q)) ||
+      (item.status?.toLowerCase().includes(q));
 
     const matchesPod =
       podFilter === "all" ||
       item.podStatus === podFilter;
+
     let matchesDate = true;
     if (showHistory && dateFilter) {
       const filterDateStr = dateFilter.toDateString();
-      const itemDateStr = new Date(item.originalDate).toDateString();
+      const rawDate = item.invoiceDate || item.dispatchDate || item.originalDate;
+      const itemDateStr = rawDate ? new Date(rawDate).toDateString() : "";
       matchesDate = filterDateStr === itemDateStr;
     }
 
@@ -321,10 +307,15 @@ export function DashboardPage() {
 
   return (
     <>
-      {activeStatView && !loading ? (
+      {activeStatView ? (
         <StatDetailView
           activeStatView={activeStatView}
-          onBack={() => setActiveStatView(null)}
+          activeStatSection={activeStatSection}
+          onBack={() => {
+            setActiveStatView(null);
+            setActiveStatSection("default");
+            setActiveStatItems([]);
+          }}
           tableData={tableData}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -342,27 +333,47 @@ export function DashboardPage() {
           }}
         />
       ) : (
-        /* Removed max-w-[1600px] & mx-auto to allow dashboard content to utilize full available width */
-        <div className="p-6 md:p-8 w-full space-y-8">
+        /* Content utilizes full available width */
+        <div className="p-6 md:p-8 w-full space-y-6">
           <DashboardHeader />
-          {loading ? (
+
+          {loading && !stats.length && !currentShipments.length ? (
             <div className="flex justify-center items-center h-64">
               <p className="text-muted-foreground">Loading dashboard data...</p>
             </div>
           ) : (
             <>
-              <DashboardStatsGrid onStatClick={setActiveStatView} stats={displayStats} />
-              <DashboardChart
-                weeklyData={weeklyData}
-                fromDate={fromDate}
-                setFromDate={setFromDate}
-                toDate={toDate}
-                setToDate={setToDate}
-                onApply={handleApplyFilter}
-                onReset={handleClearDates}
-                loading={loading}
+              {/* SECTION 1: INVOICE SUMMARY (Invoice Date) */}
+              <InvoiceSummarySection 
+                onCardClick={handleCardClick}
+                initialFromDate="2026-08-31"
+                initialToDate="2026-09-09"
+                draftFromDate={invoiceDraftFromDate}
+                setDraftFromDate={setInvoiceDraftFromDate}
+                draftToDate={invoiceDraftToDate}
+                setDraftToDate={setInvoiceDraftToDate}
+                appliedFromDate={invoiceAppliedFromDate}
+                setAppliedFromDate={setInvoiceAppliedFromDate}
+                appliedToDate={invoiceAppliedToDate}
+                setAppliedToDate={setInvoiceAppliedToDate}
               />
-              <InvoiceDispatchSummary fromDate={fromDate} toDate={toDate} />
+
+              {/* SECTION 2: DESPATCH SUMMARY (Despatch Date) */}
+              <DespatchSummarySection 
+                onCardClick={handleCardClick}
+                initialFromDate="2026-08-31"
+                initialToDate="2026-09-09"
+                draftFromDate={despatchDraftFromDate}
+                setDraftFromDate={setDespatchDraftFromDate}
+                draftToDate={despatchDraftToDate}
+                setDraftToDate={setDespatchDraftToDate}
+                appliedFromDate={despatchAppliedFromDate}
+                setAppliedFromDate={setDespatchAppliedFromDate}
+                appliedToDate={despatchAppliedToDate}
+                setAppliedToDate={setDespatchAppliedToDate}
+              />
+
+              {/* SECTION 3: Shipment Operational Flow */}
               <PendingPODsPanel />
             </>
           )}

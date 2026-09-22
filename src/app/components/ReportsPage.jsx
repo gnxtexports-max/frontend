@@ -43,15 +43,21 @@ import * as XLSX from "xlsx";
 import { cn } from "./ui/utils";
 
 export function ReportsPage() {
-  const [dateRange, setDateRange] = useState("7d");
+  // ── Common top-level filters (apply across entire report module) ──
+  const [dateRange, setDateRange] = useState("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState("all");
   const [driverFilter, setDriverFilter] = useState("all");
   const [dealerFilter, setDealerFilter] = useState("all");
+  const [lrNoFilter, setLrNoFilter] = useState("");
+  const [plantNoFilter, setPlantNoFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [podFilter, setPodFilter] = useState("all");
+
   const [groupBy, setGroupBy] = useState("day");
   const [activeTab, setActiveTab] = useState("shipments");
-  const [chartMode, setChartMode] = useState("volume"); // "volume" or "expenses"
+  const [chartMode, setChartMode] = useState("volume");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [stats, setStats] = useState({
@@ -60,6 +66,14 @@ export function ReportsPage() {
     completedShipments: 0,
     totalExpenses: 0,
     completedInvoices: 0,
+  });
+
+  const [invoiceStatusCounts, setInvoiceStatusCounts] = useState({
+    awaitingShipment: 0,
+    despatched: 0,
+    delivered: 0,
+    cancelled: 0,
+    total: 0,
   });
 
   const [shipments, setShipments] = useState([]);
@@ -71,6 +85,8 @@ export function ReportsPage() {
     vehicles: [],
     drivers: [],
     dealers: [],
+    lrNumbers: [],
+    plantNumbers: [],
   });
 
   const [loading, setLoading] = useState(true);
@@ -90,7 +106,7 @@ export function ReportsPage() {
     fetchFilters();
   }, [refreshTrigger]);
 
-  // Fetch stats and lists when filters or grouping changes
+  // Fetch stats and lists when common filters or grouping changes
   useEffect(() => {
     async function fetchStats() {
       setLoading(true);
@@ -104,6 +120,10 @@ export function ReportsPage() {
         });
         if (fromDate) queryParams.append("fromDate", fromDate);
         if (toDate) queryParams.append("toDate", toDate);
+        if (lrNoFilter && lrNoFilter.trim()) queryParams.append("lrNo", lrNoFilter.trim());
+        if (plantNoFilter && plantNoFilter !== "all") queryParams.append("plantNo", plantNoFilter);
+        if (statusFilter && statusFilter !== "all") queryParams.append("status", statusFilter);
+        if (podFilter && podFilter !== "all") queryParams.append("pod", podFilter);
 
         const res = await fetch(`${import.meta.env?.VITE_API_URL || "http://localhost:5000/api"}/reports/stats?${queryParams.toString()}`);
         const json = await res.json();
@@ -117,6 +137,7 @@ export function ReportsPage() {
           });
           setShipments(json.data.shipments || []);
           setInvoices(json.data.invoices || []);
+          setInvoiceStatusCounts(json.data.invoiceStatusCounts || { awaitingShipment: 0, despatched: 0, delivered: 0, cancelled: 0, total: 0 });
           setFleet(json.data.fleet || { drivers: [], vehicles: [] });
           setTimeline(json.data.timeline || []);
         }
@@ -127,7 +148,8 @@ export function ReportsPage() {
       }
     }
     fetchStats();
-  }, [dateRange, fromDate, toDate, vehicleFilter, driverFilter, dealerFilter, groupBy, refreshTrigger]);
+  }, [dateRange, fromDate, toDate, vehicleFilter, driverFilter, dealerFilter, groupBy, refreshTrigger,
+    lrNoFilter, plantNoFilter, statusFilter, podFilter]);
 
   // Live refresh on socket cache update
   useEffect(() => {
@@ -182,52 +204,35 @@ export function ReportsPage() {
     return "pending";
   };
 
-  const exportCompletedInvoices = () => {
-    const rows = [];
-    invoices.forEach((lrRecord) => {
-      const baseRow = {
-        "customer name": lrRecord.customerName || "—",
-        "Customer Location": lrRecord.location || "—",
-        "status": getMappedStatus(lrRecord.status),
-        "pod": getMappedPod(lrRecord.podSubmitted),
-        "LR no": lrRecord.lrNumber || "—",
-        "date of despatch": lrRecord.dispatchDate
-          ? new Date(lrRecord.dispatchDate).toLocaleDateString("en-IN")
-          : "—",
-      };
+  const formatReportDate = (d) => {
+    if (!d) return "—";
+    const dateObj = new Date(d);
+    if (isNaN(dateObj.getTime())) return "—";
+    const dd = String(dateObj.getDate()).padStart(2, "0");
+    const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const yyyy = dateObj.getFullYear();
+    return `${dd}.${mm}.${yyyy}`;
+  };
 
-      if (lrRecord.invoices && lrRecord.invoices.length > 0) {
-        lrRecord.invoices.forEach((inv) => {
-          rows.push({
-            "Plant": inv.plantReferenceNumber || lrRecord.plantReferenceNumber || "—",
-            "Invoice No": inv.invoiceNumber || "—",
-            "Invoice Dt": inv.invoiceDate
-              ? new Date(inv.invoiceDate).toLocaleDateString("en-IN")
-              : "—",
-            ...baseRow,
-          });
-        });
-      } else {
-        const refs = (lrRecord.plantReferenceNumber || "").split(",").map(p => p.trim()).filter(Boolean);
-        if (refs.length > 0) {
-          refs.forEach((ref) => {
-            rows.push({
-              "Plant": ref,
-              "Invoice No": "—",
-              "Invoice Dt": "—",
-              ...baseRow,
-            });
-          });
-        } else {
-          rows.push({
-            "Plant": lrRecord.plantReferenceNumber || "—",
-            "Invoice No": "—",
-            "Invoice Dt": "—",
-            ...baseRow,
-          });
-        }
-      }
-    });
+  const exportCompletedInvoices = () => {
+    const rows = invoices.map((r) => ({
+      "Plant": r.plant || r.plantReferenceNumber || r.plantNumber || "—",
+      "Invoice No": r.invoiceNo || r.invoiceNumber || "—",
+      "Invoice Dt": formatReportDate(r.invoiceDt || r.invoiceDate),
+      "CUSTOMER": r.customer || r.customerName || "—",
+      "Customer Location": r.customerLocation || r.location || "—",
+      "STATUS": r.status || "AWAITING SHIPMENT",
+      "TYRE DESPATCHED": r.tyre ?? 0,
+      "TUBE DESPATCHED": r.tube ?? 0,
+      "FLAP DESPATCHED": r.flap ?? 0,
+      "TOTAL WEIGHT": r.totalWeight ?? r.weight ?? 0,
+      "LR No.": r.lrNo || r.lrNumber || "—",
+      "DESPATCHED DATE": formatReportDate(r.dispatchDate),
+      "VEHICLE NUMBER": r.vehicleNumber || "—",
+      "DRIVER NAME": r.driverName || "—",
+      "DELIVERED DATE": formatReportDate(r.deliveryDate),
+      "POD": r.pod || "NOT GENERATED",
+    }));
 
     rows.sort((a, b) => {
       const pA = String(a["Plant"] || "");
@@ -237,13 +242,15 @@ export function ReportsPage() {
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Completed Invoices");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Invoices Historical Ledger");
 
     worksheet["!cols"] = [
-      { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 25 }, { wch: 22 }, { wch: 18 }, { wch: 15 }, { wch: 20 }, { wch: 18 }
+      { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 28 }, { wch: 20 },
+      { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
+      { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 20 }, { wch: 18 }, { wch: 16 }
     ];
 
-    XLSX.writeFile(workbook, `GNXT_Completed_Invoices_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(workbook, `GNXT_Invoices_Historical_Ledger_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const exportDriverLeaderboard = () => {
@@ -318,69 +325,96 @@ export function ReportsPage() {
           </div>
         </div>
 
-        {/* ── FILTERS BAR ── */}
-        <div className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-sm no-print">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">
-            <Filter className="w-3.5 h-3.5" />
+        {/* ── COMMON TOP HEADER FILTERS BAR ── */}
+        <div className="flex flex-wrap items-center gap-2.5 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-sm no-print">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mr-1 uppercase tracking-wider shrink-0">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
             Filters:
           </div>
 
           {/* Date Range */}
-          <Select value={dateRange || "7d"} onValueChange={(val) => { setDateRange(val || "7d"); setFromDate(""); setToDate(""); }}>
-            <SelectTrigger className="w-[140px] h-9 text-xs bg-white border-slate-200 rounded-md">
+          <Select value={dateRange || "all"} onValueChange={(val) => { setDateRange(val || "all"); setFromDate(""); setToDate(""); }}>
+            <SelectTrigger className="w-[130px] h-8 text-xs bg-white border-slate-200 rounded-md">
               <CalendarDays className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
-              <SelectValue />
+              <SelectValue placeholder="Date Range" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="7d">Last 7 Days</SelectItem>
               <SelectItem value="30d">Last 30 Days</SelectItem>
               <SelectItem value="90d">Last 90 Days</SelectItem>
-              <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
           </Select>
 
           {/* From Date */}
-          <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-slate-200 h-9 text-xs">
-            <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-500 font-medium">From:</span>
+          <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-slate-200 h-8 text-xs">
+            <CalendarDays className="w-3 h-3 text-slate-400" />
+            <span className="text-slate-400 font-medium">From:</span>
             <input
               type="date"
               value={fromDate || ""}
               onChange={(e) => setFromDate(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer text-foreground"
+              className="bg-transparent outline-none cursor-pointer text-foreground text-xs"
             />
           </div>
 
           {/* To Date */}
-          <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-slate-200 h-9 text-xs">
-            <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-500 font-medium">To:</span>
+          <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-slate-200 h-8 text-xs">
+            <CalendarDays className="w-3 h-3 text-slate-400" />
+            <span className="text-slate-400 font-medium">To:</span>
             <input
               type="date"
               value={toDate || ""}
               onChange={(e) => setToDate(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer text-foreground"
+              className="bg-transparent outline-none cursor-pointer text-foreground text-xs"
             />
           </div>
 
-          {(fromDate || toDate) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setFromDate(""); setToDate(""); }}
-              className="h-9 px-2 text-xs text-slate-500 hover:text-slate-900"
-            >
-              <X className="w-3.5 h-3.5 mr-1" />
-              Clear Dates
-            </Button>
-          )}
+          {/* LR No search */}
+          <div className="flex items-center gap-1.5 border border-slate-200 rounded-md px-2.5 h-8 bg-white">
+            <FileText className="w-3 h-3 text-slate-400" />
+            <input
+              type="text"
+              placeholder="LR No..."
+              value={lrNoFilter}
+              onChange={(e) => setLrNoFilter(e.target.value)}
+              className="outline-none text-xs text-foreground bg-transparent w-[90px]"
+            />
+          </div>
+
+          {/* Plant No filter */}
+          <Select value={plantNoFilter || "all"} onValueChange={(v) => setPlantNoFilter(v || "all")}>
+            <SelectTrigger className="w-[125px] h-8 text-xs bg-white border-slate-200 rounded-md">
+              <SelectValue placeholder="Plant No" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Plants</SelectItem>
+              {filterOptions.plantNumbers.filter(Boolean).map((p) => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Dealer */}
+          <Select value={dealerFilter || "all"} onValueChange={(val) => setDealerFilter(val || "all")}>
+            <SelectTrigger className="w-[140px] h-8 text-xs bg-white border-slate-200 rounded-md">
+              <Package className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
+              <SelectValue placeholder="Dealer" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Dealers</SelectItem>
+              {filterOptions.dealers.filter(Boolean).map((dl) => (
+                <SelectItem key={dl} value={dl}>{dl}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Vehicle */}
           <Select value={vehicleFilter || "all"} onValueChange={(val) => setVehicleFilter(val || "all")}>
-            <SelectTrigger className="w-[150px] h-9 text-xs bg-white border-slate-200 rounded-md">
+            <SelectTrigger className="w-[130px] h-8 text-xs bg-white border-slate-200 rounded-md">
               <Car className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
-              <SelectValue />
+              <SelectValue placeholder="Vehicle" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Vehicles</SelectItem>
@@ -392,9 +426,9 @@ export function ReportsPage() {
 
           {/* Driver */}
           <Select value={driverFilter || "all"} onValueChange={(val) => setDriverFilter(val || "all")}>
-            <SelectTrigger className="w-[150px] h-9 text-xs bg-white border-slate-200 rounded-md">
+            <SelectTrigger className="w-[125px] h-8 text-xs bg-white border-slate-200 rounded-md">
               <Users className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
-              <SelectValue />
+              <SelectValue placeholder="Driver" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Drivers</SelectItem>
@@ -404,33 +438,56 @@ export function ReportsPage() {
             </SelectContent>
           </Select>
 
-          {/* Dealer */}
-          <Select value={dealerFilter || "all"} onValueChange={(val) => setDealerFilter(val || "all")}>
-            <SelectTrigger className="w-[160px] h-9 text-xs bg-white border-slate-200 rounded-md">
-              <Package className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
-              <SelectValue />
+          {/* Status */}
+          <Select value={statusFilter || "all"} onValueChange={(val) => setStatusFilter(val || "all")}>
+            <SelectTrigger className="w-[135px] h-8 text-xs bg-white border-slate-200 rounded-md">
+              <Filter className="w-3 h-3 text-slate-400 mr-1.5" />
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Dealers</SelectItem>
-              {filterOptions.dealers.filter(Boolean).map((dl) => (
-                <SelectItem key={dl} value={dl}>{dl}</SelectItem>
-              ))}
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="AWAITING SHIPMENT">Awaiting Shipment</SelectItem>
+              <SelectItem value="DESPATCHED">Despatched</SelectItem>
+              <SelectItem value="DELIVERED">Delivered</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
             </SelectContent>
           </Select>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-xs text-slate-500 hover:text-slate-900 ml-auto hover:bg-slate-50 rounded-md font-medium"
-            onClick={() => {
-              setDateRange("7d");
-              setVehicleFilter("all");
-              setDriverFilter("all");
-              setDealerFilter("all");
-            }}
-          >
-            Clear All
-          </Button>
+          {/* POD Status */}
+          <Select value={podFilter || "all"} onValueChange={(val) => setPodFilter(val || "all")}>
+            <SelectTrigger className="w-[120px] h-8 text-xs bg-white border-slate-200 rounded-md">
+              <SelectValue placeholder="POD Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All POD</SelectItem>
+              <SelectItem value="not_generated">Not Generated</SelectItem>
+              <SelectItem value="pending">POD Pending</SelectItem>
+              <SelectItem value="uploaded">POD Uploaded</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(dateRange !== "all" || fromDate || toDate || lrNoFilter || plantNoFilter !== "all" || dealerFilter !== "all" || vehicleFilter !== "all" || driverFilter !== "all" || statusFilter !== "all" || podFilter !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 ml-auto font-medium"
+              onClick={() => {
+                setDateRange("all");
+                setFromDate("");
+                setToDate("");
+                setLrNoFilter("");
+                setPlantNoFilter("all");
+                setDealerFilter("all");
+                setVehicleFilter("all");
+                setDriverFilter("all");
+                setStatusFilter("all");
+                setPodFilter("all");
+              }}
+            >
+              <X className="w-3 h-3 mr-1" />
+              Clear Filters
+            </Button>
+          )}
         </div>
       </div>
 
@@ -781,145 +838,255 @@ export function ReportsPage() {
 
         {/* TAB 2: COMPLETED INVOICES TABLE */}
         {activeTab === "invoices" && (() => {
+          // Normalize invoices into table rows
           const flatInvoicesList = [];
-          invoices.forEach((lrRecord) => {
-            const baseRecord = {
-              lrNumber: lrRecord.lrNumber,
-              customerName: lrRecord.customerName,
-              location: lrRecord.location,
-              status: lrRecord.status,
-              dispatchDate: lrRecord.dispatchDate,
-              podSubmitted: lrRecord.podSubmitted,
-              podReceiverName: lrRecord.podReceiverName,
-              podRemarks: lrRecord.podRemarks,
-              podImages: lrRecord.podImages,
-            };
-
-            if (lrRecord.invoices && lrRecord.invoices.length > 0) {
-              lrRecord.invoices.forEach((inv) => {
+          invoices.forEach((item) => {
+            if (item.invoices && Array.isArray(item.invoices) && item.invoices.length > 0) {
+              item.invoices.forEach((inv) => {
                 flatInvoicesList.push({
-                  ...baseRecord,
-                  plantNumber: inv.plantReferenceNumber || lrRecord.plantReferenceNumber,
-                  invoiceNumber: inv.invoiceNumber,
-                  invoiceDate: inv.invoiceDate,
+                  plant: inv.plantReferenceNumber || item.plant || item.plantReferenceNumber || "—",
+                  invoiceNo: inv.invoiceNumber || item.invoiceNo || item.invoiceNumber || "—",
+                  invoiceDt: inv.invoiceDate || item.invoiceDt || item.invoiceDate || null,
+                  customer: inv.customerName || item.customer || item.customerName || "—",
+                  customerLocation: inv.location || item.customerLocation || item.location || "—",
+                  status: item.status || "AWAITING SHIPMENT",
+                  tyre: (Number(inv.tyre) || Number(item.tyre) || 0),
+                  tube: (Number(inv.tube) || Number(item.tube) || 0),
+                  flap: (Number(inv.flap) || Number(item.flap) || 0),
+                  totalWeight: (Number(inv.weight) || Number(item.totalWeight) || Number(item.weight) || 0),
+                  lrNo: item.lrNo || item.lrNumber || "—",
+                  dispatchDate: item.dispatchDate || null,
+                  vehicleNumber: item.vehicleNumber || "—",
+                  driverName: item.driverName || "—",
+                  deliveryDate: item.deliveryDate || null,
+                  pod: item.pod || "NOT GENERATED",
+                  podImages: item.podImages || [],
                 });
               });
             } else {
-              const refs = (lrRecord.plantReferenceNumber || "").split(",").map(p => p.trim()).filter(Boolean);
-              if (refs.length > 0) {
-                refs.forEach((ref) => {
-                  flatInvoicesList.push({
-                    ...baseRecord,
-                    plantNumber: ref,
-                    invoiceNumber: "—",
-                    invoiceDate: null,
-                  });
-                });
-              } else {
-                flatInvoicesList.push({
-                  ...baseRecord,
-                  plantNumber: lrRecord.plantReferenceNumber || "—",
-                  invoiceNumber: "—",
-                  invoiceDate: null,
-                });
-              }
+              flatInvoicesList.push({
+                plant: item.plant || item.plantReferenceNumber || item.plantNumber || "—",
+                invoiceNo: item.invoiceNo || item.invoiceNumber || "—",
+                invoiceDt: item.invoiceDt || item.invoiceDate || null,
+                customer: item.customer || item.customerName || "—",
+                customerLocation: item.customerLocation || item.location || "—",
+                status: item.status || "AWAITING SHIPMENT",
+                tyre: Number(item.tyre) || 0,
+                tube: Number(item.tube) || 0,
+                flap: Number(item.flap) || 0,
+                totalWeight: Number(item.totalWeight) || Number(item.weight) || 0,
+                lrNo: item.lrNo || item.lrNumber || "—",
+                dispatchDate: item.dispatchDate || null,
+                vehicleNumber: item.vehicleNumber || "—",
+                driverName: item.driverName || "—",
+                deliveryDate: item.deliveryDate || null,
+                pod: item.pod || "NOT GENERATED",
+                podImages: item.podImages || [],
+              });
             }
           });
 
-          flatInvoicesList.sort((a, b) => {
-            const pA = String(a.plantNumber || "");
-            const pB = String(b.plantNumber || "");
-            return pA.localeCompare(pB, undefined, { numeric: true, sensitivity: "base" });
-          });
+          flatInvoicesList.sort((a, b) =>
+            String(a.plant || "").localeCompare(String(b.plant || ""), undefined, { numeric: true, sensitivity: "base" })
+          );
+
+          const getStatusBadgeStyle = (statusVal) => {
+            const s = String(statusVal || "").trim().toUpperCase();
+            if (s === "DELIVERED" || s === "CLOSED") {
+              return "bg-emerald-600 text-white border-transparent";
+            }
+            if (s === "DESPATCHED" || s === "IN TRANSIT") {
+              return "bg-blue-600 text-white border-transparent";
+            }
+            if (s === "CANCELLED") {
+              return "bg-rose-600 text-white border-transparent";
+            }
+            return "bg-[#00875A] text-white border-transparent";
+          };
+
+          const getPodBadgeStyle = (podVal) => {
+            const p = String(podVal || "").trim().toUpperCase();
+            if (p === "UPLOADED" || p === "YES") {
+              return "bg-emerald-50 text-emerald-700 border-emerald-200";
+            }
+            if (p === "PENDING") {
+              return "bg-rose-50 text-rose-700 border-rose-200";
+            }
+            return "bg-[#00875A] text-white border-transparent";
+          };
 
           return (
-            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold text-slate-800 text-sm">Completed Invoices Historical Ledger</h4>
-                  <p className="text-xs text-slate-400">Verifiable ledger tracking all completed invoice deliveries.</p>
-                </div>
+            <div className="space-y-4">
+              {/* Status summary badges */}
+              <div className="flex flex-wrap items-center gap-2 no-print">
+                {[
+                  { label: "Total Invoices", value: invoiceStatusCounts.total, cls: "bg-slate-100 text-slate-700 border-slate-200" },
+                  { label: "Awaiting Shipment", value: invoiceStatusCounts.awaitingShipment, cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+                  { label: "Despatched", value: invoiceStatusCounts.despatched, cls: "bg-blue-50 text-blue-700 border-blue-200" },
+                  { label: "Delivered", value: invoiceStatusCounts.delivered, cls: "bg-teal-50 text-teal-800 border-teal-200" },
+                  { label: "Cancelled", value: invoiceStatusCounts.cancelled, cls: "bg-rose-50 text-rose-700 border-rose-200" },
+                ].map((s) => (
+                  <div key={s.label} className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold", s.cls)}>
+                    <span>{s.label}:</span>
+                    <span className="font-extrabold">{s.value}</span>
+                  </div>
+                ))}
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-100 text-left border-collapse">
-                  <thead className="bg-[#f8f9fb] text-slate-400 uppercase text-[9px] font-bold tracking-wider border-b border-slate-200">
-                    <tr className="divide-x divide-slate-200">
-                      <th className="py-3 px-4">Plant</th>
-                      <th className="py-3 px-3">Invoice No</th>
-                      <th className="py-3 px-3">Invoice Dt</th>
-                      <th className="py-3 px-3">customer name</th>
-                      <th className="py-3 px-3">Customer Location</th>
-                      <th className="py-3 px-3">status</th>
-                      <th className="py-3 px-3">pod</th>
-                      <th className="py-3 px-3">LR no</th>
-                      <th className="py-3 px-4">date of despatch</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
-                    {loading ? (
-                      <tr>
-                        <td colSpan={9} className="text-center py-10">
-                          <RefreshCw className="w-5 h-5 animate-spin mx-auto text-slate-300" />
-                        </td>
-                      </tr>
-                    ) : flatInvoicesList.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="text-center py-12 text-slate-400">No completed invoices matching criteria.</td>
-                      </tr>
-                    ) : (
-                      flatInvoicesList.map((row, idx) => {
-                        const displayStatus = getMappedStatus(row.status);
-                        const displayPod = getMappedPod(row.podSubmitted);
 
-                        return (
-                          <tr key={`${row.lrNumber}-${row.plantNumber}-${row.invoiceNumber}-${idx}`} className="hover:bg-slate-50/50 divide-x divide-slate-100">
-                            <td className="py-3 px-4 font-mono font-semibold text-slate-700">{row.plantNumber}</td>
-                            <td className="py-3 px-3 font-semibold text-[#1d4ed8]">{row.invoiceNumber}</td>
-                            <td className="py-3 px-3 text-slate-500">
-                              {row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("en-IN") : "—"}
-                            </td>
-                            <td className="py-3 px-3 font-semibold text-slate-700 max-w-[180px] truncate" title={row.customerName}>
-                              {row.customerName}
-                            </td>
-                            <td className="py-3 px-3 text-slate-500">{row.location || "—"}</td>
-                            <td className="py-3 px-3">
-                              <span
-                                className={cn(
-                                  "inline-flex text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border",
-                                  displayStatus === "closed"
-                                    ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                    : displayStatus === "delivery pending"
-                                    ? "bg-blue-50 text-blue-700 border-blue-100"
-                                    : "bg-amber-50 text-amber-700 border-amber-100"
-                                )}
-                              >
-                                {displayStatus}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span
-                                className={cn(
-                                  "inline-flex text-[9px] uppercase font-bold px-2 py-0.5 rounded-full border",
-                                  displayPod === "uploaded"
-                                    ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                    : "bg-rose-50 text-rose-700 border-rose-100"
-                                )}
-                              >
-                                {displayPod}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 font-bold text-slate-800 tabular-nums">{row.lrNumber}</td>
-                            <td className="py-3 px-4 text-slate-400 font-medium whitespace-nowrap">
-                              {row.dispatchDate
-                                ? new Date(row.dispatchDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-                                : "—"}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+              {/* Ledger Table - Exact 16 Columns Matching Client Spec */}
+              <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-sm">Completed Invoices Historical Ledger</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">Comprehensive audit ledger tracking all invoices across dispatch and delivery milestones.</p>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">{flatInvoicesList.length} records</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left border-collapse" style={{ fontSize: "11px" }}>
+                    <thead className="bg-[#f8f9fb] text-slate-500 uppercase text-[9px] font-extrabold tracking-wider border-b border-slate-200 sticky top-0 z-10">
+                      <tr className="divide-x divide-slate-200">
+                        <th className="py-2.5 px-3 whitespace-nowrap">Plant</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Invoice No</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Invoice Dt</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">CUSTOMER</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Customer Location</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap text-center">STATUS</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap text-right">TYRE DESPATCHED</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap text-right">TUBE DESPATCHED</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap text-right">FLAP DESPATCHED</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap text-right">TOTAL WEIGHT</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">LR No.</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">DESPATCHED DATE</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">VEHICLE NUMBER</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">DRIVER NAME</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">DELIVERED DATE</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap text-center">POD</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-600">
+                      {loading ? (
+                        <tr>
+                          <td colSpan={16} className="text-center py-10">
+                            <RefreshCw className="w-5 h-5 animate-spin mx-auto text-slate-300" />
+                          </td>
+                        </tr>
+                      ) : flatInvoicesList.length === 0 ? (
+                        <tr>
+                          <td colSpan={16} className="text-center py-12 text-slate-400">No records matching the selected filters.</td>
+                        </tr>
+                      ) : (
+                        flatInvoicesList.map((row, idx) => {
+                          const statusCls = getStatusBadgeStyle(row.status);
+                          const podCls = getPodBadgeStyle(row.pod);
+
+                          return (
+                            <tr
+                              key={`${row.plant}-${row.invoiceNo}-${idx}`}
+                              className="hover:bg-slate-50/70 divide-x divide-slate-100 transition-colors"
+                            >
+                              {/* 1. Plant */}
+                              <td className="py-2 px-3 font-mono font-bold text-slate-800 whitespace-nowrap">
+                                {row.plant || "—"}
+                              </td>
+
+                              {/* 2. Invoice No */}
+                              <td className="py-2 px-3 font-semibold text-blue-700 whitespace-nowrap tabular-nums">
+                                {row.invoiceNo || "—"}
+                              </td>
+
+                              {/* 3. Invoice Dt */}
+                              <td className="py-2 px-3 text-slate-500 whitespace-nowrap tabular-nums">
+                                {formatReportDate(row.invoiceDt)}
+                              </td>
+
+                              {/* 4. CUSTOMER */}
+                              <td className="py-2 px-3 font-semibold text-slate-800 max-w-[200px] truncate" title={row.customer}>
+                                {row.customer || "—"}
+                              </td>
+
+                              {/* 5. Customer Location */}
+                              <td className="py-2 px-3 text-slate-500 max-w-[130px] truncate" title={row.customerLocation}>
+                                {row.customerLocation || "—"}
+                              </td>
+
+                              {/* 6. STATUS */}
+                              <td className="py-2 px-3 whitespace-nowrap text-center">
+                                <span className={cn("inline-flex text-[9px] uppercase font-bold px-2.5 py-0.5 rounded shadow-sm tracking-wide", statusCls)}>
+                                  {row.status}
+                                </span>
+                              </td>
+
+                              {/* 7. TYRE DESPATCHED */}
+                              <td className="py-2 px-3 text-right font-medium tabular-nums text-slate-700">
+                                {row.tyre ?? 0}
+                              </td>
+
+                              {/* 8. TUBE DESPATCHED */}
+                              <td className="py-2 px-3 text-right font-medium tabular-nums text-slate-700">
+                                {row.tube ?? 0}
+                              </td>
+
+                              {/* 9. FLAP DESPATCHED */}
+                              <td className="py-2 px-3 text-right font-medium tabular-nums text-slate-700">
+                                {row.flap ?? 0}
+                              </td>
+
+                              {/* 10. TOTAL WEIGHT */}
+                              <td className="py-2 px-3 text-right font-semibold tabular-nums text-slate-800 whitespace-nowrap">
+                                {row.totalWeight ? `${Number(row.totalWeight).toFixed(2)} kg` : "0 kg"}
+                              </td>
+
+                              {/* 11. LR No. */}
+                              <td className="py-2 px-3 font-mono font-bold text-[#1d4ed8] whitespace-nowrap tabular-nums">
+                                {row.lrNo || "—"}
+                              </td>
+
+                              {/* 12. DESPATCHED DATE */}
+                              <td className="py-2 px-3 text-slate-500 whitespace-nowrap tabular-nums">
+                                {formatReportDate(row.dispatchDate)}
+                              </td>
+
+                              {/* 13. VEHICLE NUMBER */}
+                              <td className="py-2 px-3 text-slate-700 font-medium whitespace-nowrap">
+                                {row.vehicleNumber || "—"}
+                              </td>
+
+                              {/* 14. DRIVER NAME */}
+                              <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                                {row.driverName || "—"}
+                              </td>
+
+                              {/* 15. DELIVERED DATE */}
+                              <td className="py-2 px-3 text-slate-500 whitespace-nowrap tabular-nums">
+                                {formatReportDate(row.deliveryDate)}
+                              </td>
+
+                              {/* 16. POD */}
+                              <td className="py-2 px-3 whitespace-nowrap text-center">
+                                <span
+                                  className={cn(
+                                    "inline-flex text-[9px] uppercase font-bold px-2 py-0.5 rounded shadow-sm tracking-wide",
+                                    podCls,
+                                    row.podImages && row.podImages.length > 0 && "cursor-pointer hover:opacity-85"
+                                  )}
+                                  onClick={() => {
+                                    if (row.podImages && row.podImages.length > 0) {
+                                      setPreviewImage(row.podImages[0]);
+                                    }
+                                  }}
+                                  title={row.podImages && row.podImages.length > 0 ? "Click to view POD proof" : ""}
+                                >
+                                  {row.pod}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           );

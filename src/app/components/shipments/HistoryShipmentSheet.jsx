@@ -347,9 +347,9 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
             onScroll={handleTableScroll}
             className="flex-1 overflow-auto relative [&_[data-slot=table-container]]:overflow-x-visible"
           >
-            <Table className="min-w-[1200px]">
-              <TableHeader className="bg-slate-50/50 sticky top-0 z-10">
-                <TableRow>
+            <Table className="w-full border-collapse">
+              <TableHeader className="sticky top-0 z-20 bg-slate-50 [&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:bg-slate-50 [&_th]:border-b [&_th]:border-border shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                <TableRow className="hover:bg-transparent bg-slate-50 border-b">
                   {/* Select Checkbox Column */}
                   <TableHead className="pl-4 w-[50px]">
                     <button
@@ -475,17 +475,17 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
                         <TableCell className="text-[11px] text-slate-500 font-medium">
                           {s.deliveryDate
                             ? new Date(s.deliveryDate).toLocaleDateString("en-IN", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })
                             : s.createdAt
-                            ? new Date(s.createdAt).toLocaleDateString("en-IN", {
+                              ? new Date(s.createdAt).toLocaleDateString("en-IN", {
                                 day: "2-digit",
                                 month: "short",
                                 year: "numeric",
                               })
-                            : "—"}
+                              : "—"}
                         </TableCell>
 
                         {/* POD Status */}
@@ -549,20 +549,6 @@ export function HistoryShipmentSheet({ open, onOpenChange, historyShipments = []
             <div ref={sentinelRef} className="h-px w-full" />
           </div>
 
-          {showStickyScrollbar && (
-            <div
-              ref={scrollbarRef}
-              onScroll={handleScrollbarScroll}
-              className="fixed bottom-0 bg-white/95 border-t border-border z-50 overflow-x-auto overflow-y-hidden shadow-[0_-4px_12px_rgba(0,0,0,0.05)] transition-opacity duration-200"
-              style={{
-                left: positionStyle.left,
-                width: positionStyle.width,
-                height: "16px",
-              }}
-            >
-              <div style={{ width: scrollWidth, height: "1px" }} />
-            </div>
-          )}
 
           {/* Pagination Footer */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-t border-border rounded-b-xl shrink-0">

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { FileCheck, Clock, Camera, FileText, Image, Eye, Printer, Upload, X, CheckCircle2, CircleDot, Circle, Disc, MapPin, Hash, Weight, ChevronRight, Download } from "lucide-react";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -56,8 +56,43 @@ function DestinationPODCard({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Sync state when props change
+  useEffect(() => {
+    setReceiverName(dest.podReceiverName || "");
+    setRemarks(dest.podRemarks || "");
+    setImages(dest.podImages || []);
+  }, [dest.podReceiverName, dest.podRemarks, dest.podImages]);
+
   const isDestDelivered = dest.status === "Delivered";
   const isPodSaved = !!(dest.podImages?.length > 0 || dest.podReceiverName || dest.podRemarks);
+
+  const hasUnsavedChanges =
+    JSON.stringify(images) !== JSON.stringify(dest.podImages || []) ||
+    receiverName !== (dest.podReceiverName || "") ||
+    remarks !== (dest.podRemarks || "");
+
+  const handleSave = async () => {
+    if (uploading || !onSavePOD) return;
+    setUploading(true);
+    try {
+      await onSavePOD(dest._id, {
+        podReceiverName: receiverName,
+        podRemarks: remarks,
+        podImages: images,
+      });
+    } catch (err) {
+      console.error("Save POD error:", err);
+      alert("Error saving POD data: " + (err.message || "Failed to save"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = (idx) => {
+    if (window.confirm("Are you sure you want to remove this POD image?")) {
+      setImages((prev) => prev.filter((_, i) => i !== idx));
+    }
+  };
 
   const isPending = shipmentStatus === "Pending";
   const isClosed = shipmentStatus === "Cancelled";
@@ -74,6 +109,7 @@ function DestinationPODCard({
 
     const vehicleNo = shipment.vehicleNumber || (typeof shipment.vehicleId === "object" ? shipment.vehicleId?.vehicleNo : "—");
     const driverName = shipment.driverName || (typeof shipment.driverId === "object" ? shipment.driverId?.name : "");
+    const supervisorName = shipment.supervisorName || (typeof shipment.supervisorId === "object" ? shipment.supervisorId?.name : "");
     const fromAddress = "Kottayam CFA (CEAT LTD) GNXT Power Corp, Kottayam";
     const toAddress = `${dest.customerName || "—"}, ${dest.deliveryLocation || "—"}`;
     const invoices = (dest.invoiceIds || []).filter(inv => typeof inv === "object" && inv !== null);
@@ -87,6 +123,8 @@ function DestinationPODCard({
     if (pages.length === 0) {
       pages.push([]);
     }
+
+    const shipmentId = shipment.shipmentId || shipment.id || "—";
 
     const renderPage = (pageInvoices, pageIndex, totalPages) => {
       let totalQty = 0;
@@ -121,7 +159,8 @@ function DestinationPODCard({
           weight: invWt.toFixed(2),
           flap: invFlap,
           tube: invTube,
-          tyre: invTyre
+          tyre: invTyre,
+          remarks: inv.remarks || "-"
         };
       });
 
@@ -130,17 +169,15 @@ function DestinationPODCard({
 
       const renderCopy = () => `
         <div class="lr-copy ${spacingClass}">
-          <div class="lr-copy-title-container">
+          <div class="lr-header-row">
             <h2 class="lr-copy-title">GNXT POWER CORP</h2>
-            <div class="lr-copy-subtitle-container">
-              <div class="lr-copy-subtitle">GOODS CONSIGNMENT NOTE</div>
-            </div>
+            <div class="lr-shipment-id"><strong>SHIPMENT ID:</strong> ${shipmentId}</div>
           </div>
           
           <div class="lr-meta-row">
-            <div>LR No. &nbsp;<span class="lr-meta-lr">${displayLR}</span></div>
-            <div>Vehicle No. &nbsp;<strong>${vehicleNo}</strong></div>
-            <div>Date: &nbsp;<strong>${currentDate}</strong></div>
+            <div><strong>LR No.</strong> &nbsp; ${displayLR}</div>
+            <div><strong>Vehicle No.</strong> &nbsp; ${vehicleNo}</div>
+            <div><strong>Date:</strong> &nbsp; ${currentDate}</div>
           </div>
 
           <div class="lr-from-to">
@@ -156,15 +193,16 @@ function DestinationPODCard({
             <table class="lr-table">
               <thead>
                 <tr>
-                  <th colspan="6" class="table-title">INVOICE DETAILS ${totalPages > 1 ? `(PAGE ${pageIndex + 1} OF ${totalPages})` : ""}</th>
+                  <th colspan="7" class="table-title">INVOICE DETAILS ${totalPages > 1 ? `(PAGE ${pageIndex + 1} OF ${totalPages})` : ""}</th>
                 </tr>
                 <tr>
-                  <th>INVOICE NO</th>
-                  <th>INVOICE DATE</th>
-                  <th>WEIGHT (KG)</th>
-                  <th>TYRE</th>
-                  <th>TUBE</th>
-                  <th>FLAP</th>
+                  <th class="col-inv-no">INVOICE NO</th>
+                  <th class="col-inv-date">INVOICE DATE</th>
+                  <th class="col-inv-wt">WEIGHT (KG)</th>
+                  <th class="col-inv-tyre">TYRE</th>
+                  <th class="col-inv-tube">TUBE</th>
+                  <th class="col-inv-flap">FLAP</th>
+                  <th class="col-inv-rem">REMARKS</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,6 +214,7 @@ function DestinationPODCard({
                     <td>${r.tyre}</td>
                     <td>${r.tube}</td>
                     <td>${r.flap}</td>
+                    <td>${r.remarks}</td>
                   </tr>
                 `).join("")}
                 <tr class="total-row">
@@ -184,6 +223,7 @@ function DestinationPODCard({
                   <td>${totalTyre}</td>
                   <td>${totalTube}</td>
                   <td>${totalFlap}</td>
+                  <td>-</td>
                 </tr>
               </tbody>
             </table>
@@ -192,19 +232,17 @@ function DestinationPODCard({
           <div class="lr-signatures">
             <div class="lr-sig-box">
               <div class="lr-sig-label">SUPERVISOR SIGNATURE</div>
+              <div class="lr-sig-name">${supervisorName ? supervisorName.toUpperCase() : '&nbsp;'}</div>
               <div class="lr-sig-dotted-line"></div>
             </div>
             <div class="lr-sig-box">
               <div class="lr-sig-label">DRIVER NAME & SIGNATURE</div>
-              ${driverName ? `<div class="lr-sig-driver-name">${driverName}</div>` : ''}
+              <div class="lr-sig-name">${driverName ? driverName.toUpperCase() : '&nbsp;'}</div>
               <div class="lr-sig-dotted-line"></div>
             </div>
             <div class="lr-sig-box">
               <div class="lr-sig-label">RECEIVED BY CLIENT WITH SIGNATURE AND SEAL</div>
-              <div class="lr-sig-dotted-line"></div>
-            </div>
-            <div class="lr-sig-box">
-              <div class="lr-sig-label">REMARKS</div>
+              <div class="lr-sig-name">&nbsp;</div>
               <div class="lr-sig-dotted-line"></div>
             </div>
           </div>
@@ -279,53 +317,53 @@ function DestinationPODCard({
 
           /* Dynamic Spacing Configuration */
           .lr-copy.spacious {
-            --padding-meta-tb: 6px;
-            --font-meta: 14.5px;
-            --padding-fromto-tb: 6px;
-            --font-fromto: 14.5px;
-            --padding-table-tb: 5px;
-            --font-table: 11.5px;
-            --sig-height: 25mm;
-            --font-sig: 9.5px;
+            --padding-meta-tb: 5px;
+            --font-meta: 13.5px;
+            --padding-fromto-tb: 5px;
+            --font-fromto: 13.5px;
+            --padding-table-tb: 4.5px;
+            --font-table: 11px;
+            --sig-height: 24mm;
+            --font-sig: 9px;
           }
 
           .lr-copy.compact {
-            --padding-meta-tb: 3.5px;
-            --font-meta: 12.5px;
-            --padding-fromto-tb: 3.5px;
-            --font-fromto: 12.5px;
-            --padding-table-tb: 3px;
-            --font-table: 10px;
+            --padding-meta-tb: 3px;
+            --font-meta: 12px;
+            --padding-fromto-tb: 3px;
+            --font-fromto: 12px;
+            --padding-table-tb: 2.5px;
+            --font-table: 9.5px;
             --sig-height: 18mm;
             --font-sig: 8px;
           }
 
-          .lr-copy-title-container {
-            text-align: center;
-            padding: 4px 12px;
+          .lr-header-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 6px 12px;
+            border-bottom: 1.5px solid #000;
+            position: relative;
           }
 
           .lr-copy-title {
-            font-size: 19px;
+            font-size: 20px;
             font-weight: 800;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             margin: 0;
             text-transform: uppercase;
-            padding-bottom: 1px;
+            text-align: center;
           }
 
-          .lr-copy-subtitle-container {
-            border-top: 2px solid #000;
-            border-bottom: 2px solid #000;
-            padding: 2px 0;
-            margin-top: 1px;
-          }
-
-          .lr-copy-subtitle {
-            font-size: 11.5px;
+          .lr-shipment-id {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
             font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            letter-spacing: 0.3px;
           }
 
           .lr-meta-row {
@@ -333,22 +371,15 @@ function DestinationPODCard({
             justify-content: space-between;
             padding: var(--padding-meta-tb) 12px;
             font-size: var(--font-meta);
-            font-weight: 600;
-            border-bottom: 2px solid #000;
-          }
-
-          .lr-meta-lr {
-            color: #cc0000;
-            font-weight: 700;
+            border-bottom: 1.5px solid #000;
           }
 
           .lr-from-to {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            border-bottom: 2px solid #000;
+            border-bottom: 1.5px solid #000;
             font-size: var(--font-fromto);
-            line-height: 1.4;
-            font-weight: 500;
+            line-height: 1.35;
           }
 
           .lr-from, .lr-to {
@@ -357,11 +388,11 @@ function DestinationPODCard({
           }
 
           .lr-from {
-            border-right: 2px solid #000;
+            border-right: 1.5px solid #000;
           }
 
           .lr-table-container {
-            flex-grow: 3;
+            flex-grow: 1;
             display: flex;
             flex-direction: column;
           }
@@ -375,103 +406,110 @@ function DestinationPODCard({
 
           .lr-table th, .lr-table td {
             border: 1px solid #000;
-            padding: calc(var(--padding-table-tb) + 2px) 8px;
+            padding: var(--padding-table-tb) 6px;
             font-size: var(--font-table);
             text-align: center;
             line-height: 1.2;
             vertical-align: middle;
-            font-weight: 500;
           }
 
           .lr-table th:first-child, .lr-table td:first-child {
-            padding-left: 12px;
+            padding-left: 8px;
             border-left: none;
           }
 
           .lr-table th:last-child, .lr-table td:last-child {
-            padding-right: 12px;
+            padding-right: 8px;
             border-right: none;
           }
 
           .lr-table th {
-            background-color: #f3f4f6;
             font-weight: 700;
-          }
-
-          .lr-table thead tr:not(:first-child) th {
-            font-weight: 800;
-            font-size: calc(var(--font-table) + 1.5px);
+            font-size: calc(var(--font-table) + 0.5px);
           }
 
           .lr-table th.table-title {
-            background-color: #e5e7eb;
             font-weight: 800;
             text-transform: uppercase;
             font-size: 11.5px;
             padding: 3px 12px;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             border-top: none;
+            border-bottom: 1.5px solid #000;
           }
+
+          .col-inv-no { width: 14%; }
+          .col-inv-date { width: 15%; }
+          .col-inv-wt { width: 14%; }
+          .col-inv-tyre { width: 9%; }
+          .col-inv-tube { width: 9%; }
+          .col-inv-flap { width: 9%; }
+          .col-inv-rem { width: 30%; }
 
           .lr-table .total-row td {
             font-weight: 800;
-            font-size: calc(var(--font-table) + 3.5px);
-            background-color: #f3f4f6;
+            font-size: calc(var(--font-table) + 1.5px);
             border-bottom: none;
-            padding-top: calc(var(--padding-table-tb) + 4px);
-            padding-bottom: calc(var(--padding-table-tb) + 4px);
+            padding-top: calc(var(--padding-table-tb) + 2px);
+            padding-bottom: calc(var(--padding-table-tb) + 2px);
           }
 
           .lr-signatures {
             display: flex;
-            border-top: 1px solid #000;
+            border-top: 1.5px solid #000;
             height: var(--sig-height);
             box-sizing: border-box;
           }
 
           .lr-sig-box {
-            width: 25%;
-            border-right: 1px solid #000;
-            padding: 4px 8px;
+            width: 33.333%;
+            border-right: 1.5px solid #000;
+            padding: 4px 6px 2px 6px;
             font-size: var(--font-sig);
-            font-weight: 700;
             text-align: center;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
             box-sizing: border-box;
+            height: 100%;
           }
 
           .lr-sig-box:first-child {
-            padding-left: 12px;
+            padding-left: 8px;
           }
 
           .lr-sig-box:last-child {
             border-right: none;
-            padding-right: 12px;
+            padding-right: 8px;
           }
 
           .lr-sig-label {
+            font-weight: 700;
             text-transform: uppercase;
-            margin-bottom: 2px;
-            line-height: 1.2;
+            line-height: 1.15;
+            font-size: var(--font-sig);
+            min-height: 20px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
           }
 
-          .lr-sig-driver-name {
-            font-weight: 700;
+          .lr-sig-name {
+            font-weight: 800;
             font-size: calc(var(--font-sig) + 2px);
             text-transform: uppercase;
             color: #000;
-            margin: 2px 0;
+            margin-top: auto;
+            margin-bottom: 2px;
+            height: 16px;
+            line-height: 16px;
             text-align: center;
           }
 
           .lr-sig-dotted-line {
-            border-bottom: 2.5px dotted #000;
-            width: 90%;
-            margin: 0 auto;
+            border-bottom: 1.5px dotted #000;
+            width: 85%;
+            margin: 0 auto 1px auto;
             height: 0;
-            padding-top: 4px;
           }
 
           .dashed-separator {
@@ -561,23 +599,6 @@ function DestinationPODCard({
 
   const handlePrintLR = () => handlePrintOrDownloadLR("print");
   const handleDownloadLR = () => handlePrintOrDownloadLR("download");
-
-  const handleSave = async () => {
-    setUploading(true);
-    try {
-      await onSavePOD(dest._id, {
-        podReceiverName: receiverName,
-        podRemarks: remarks,
-        podImages: images,
-      });
-      alert("POD saved successfully for " + dest.customerName);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to save POD: " + err.message);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   return (
     <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -768,10 +789,10 @@ function DestinationPODCard({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setImages((prev) => prev.filter((_, i) => i !== idx));
+                              handleRemoveImage(idx);
                             }}
                             className="w-5 h-5 rounded-full bg-white/20 hover:bg-red-600 flex items-center justify-center transition-colors cursor-pointer"
-                            title="Remove"
+                            title="Remove Image"
                           >
                             <X className="w-3 h-3 text-white" />
                           </button>
@@ -836,21 +857,38 @@ function DestinationPODCard({
                 )}
                 <Button
                   className={`gap-1.5 h-8 text-xs font-bold text-white shadow-sm transition-all duration-150 ${
-                    isPodSaved 
-                      ? "bg-emerald-600 hover:bg-emerald-700" 
+                    uploading
+                      ? "bg-[#1d4ed8] opacity-80"
+                      : hasUnsavedChanges
+                      ? "bg-[#1d4ed8] hover:bg-[#1e40af]"
+                      : isPodSaved
+                      ? "bg-emerald-600 hover:bg-emerald-700"
                       : "bg-[#1d4ed8] hover:bg-[#1e40af]"
                   }`}
-                  disabled={images.length === 0 && !receiverName && !remarks}
+                  disabled={uploading || (images.length === 0 && !receiverName && !remarks)}
                   onClick={handleSave}
                 >
                   {uploading ? (
-                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <>
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : hasUnsavedChanges ? (
+                    <>
+                      <FileCheck className="w-3.5 h-3.5" />
+                      <span>Save POD Data</span>
+                    </>
                   ) : isPodSaved ? (
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Uploaded</span>
+                    </>
                   ) : (
-                    <FileCheck className="w-3.5 h-3.5" />
+                    <>
+                      <FileCheck className="w-3.5 h-3.5" />
+                      <span>Save POD Data</span>
+                    </>
                   )}
-                  {uploading ? "Saving..." : isPodSaved ? "Uploaded" : "Save POD Data"}
                 </Button>
               </div>
             </div>

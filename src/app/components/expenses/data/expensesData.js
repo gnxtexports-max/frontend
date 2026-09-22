@@ -20,8 +20,25 @@ export const MAINTENANCE_EXPENSE_TYPES = [
   "Miscellaneous",
 ];
 
+export const MISCELLANEOUS_EXPENSE_TYPES = [
+  "Office Expense",
+  "Tea & Snacks",
+  "Stationery",
+  "Printing",
+  "Rent",
+  "Electricity",
+  "Internet",
+  "Courier",
+  "Staff Welfare",
+  "Miscellaneous",
+];
+
 export const expenseTypes = [
-  ...new Set([...DISPATCH_EXPENSE_TYPES, ...MAINTENANCE_EXPENSE_TYPES]),
+  ...new Set([
+    ...DISPATCH_EXPENSE_TYPES,
+    ...MAINTENANCE_EXPENSE_TYPES,
+    ...MISCELLANEOUS_EXPENSE_TYPES,
+  ]),
 ];
 
 export const ITEMS_PER_PAGE = 8;

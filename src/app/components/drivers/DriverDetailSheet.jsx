@@ -143,22 +143,26 @@ export function DriverDetailSheet({ driver, open, onClose, onViewShipment }) {
                   </span>
                 </InfoField>
                 <InfoField label="Phone Number">
-                  <a
-                    href={`tel:${driver.phone?.replace(/\s/g, "")}`}
-                    className="inline-flex items-center gap-1.5 text-sm text-foreground hover:text-[#1d4ed8] transition-colors"
-                  >
-                    <PhoneIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                    {driver.phone}
-                  </a>
+                  {driver.phone ? (
+                    <a
+                      href={`tel:${driver.phone.replace(/\s/g, "")}`}
+                      className="inline-flex items-center gap-1.5 text-sm text-foreground hover:text-[#1d4ed8] transition-colors"
+                    >
+                      <PhoneIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                      {driver.phone}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-foreground">—</span>
+                  )}
                 </InfoField>
                 <InfoField label="License Number">
                   <span className="text-sm text-foreground">
                     {driver.licenseNumber || "—"}
                   </span>
                 </InfoField>
-                <InfoField label="Experience">
+                <InfoField label="Age">
                   <span className="text-sm text-foreground">
-                    {driver.age} age
+                    {driver.age ? `${driver.age} yrs` : "—"}
                   </span>
                 </InfoField>
               </div>

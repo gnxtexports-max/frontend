@@ -35,8 +35,9 @@ export function DriversPage() {
 
   const filtered = drivers.filter((d) => {
     const matchesSearch =
-      d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.phone.includes(searchQuery);
+      (d.name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+      (d.phone || "").includes(searchQuery) ||
+      (d.licenseNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === "all" || d.driverType === typeFilter;
     const matchesStatus =
       statusFilter === "all" || d.tripStatus === statusFilter;
@@ -63,8 +64,9 @@ export function DriversPage() {
       });
 
       if (!res.ok) {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
         console.error("Error adding driver:", error);
+        alert(error.message || "Error adding driver");
         return false;
       }
 
@@ -72,6 +74,7 @@ export function DriversPage() {
       return true;
     } catch (error) {
       console.error("Error adding driver:", error);
+      alert(error.message || "Error adding driver");
       return false;
     }
   };
@@ -86,8 +89,9 @@ export function DriversPage() {
       });
 
       if (!res.ok) {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
         console.error("Error updating driver:", error);
+        alert(error.message || "Error updating driver");
         return false;
       }
 
@@ -95,6 +99,7 @@ export function DriversPage() {
       return true;
     } catch (error) {
       console.error("Error updating driver:", error);
+      alert(error.message || "Error updating driver");
       return false;
     }
   };

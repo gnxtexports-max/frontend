@@ -216,6 +216,9 @@ export function ViewShipmentSheet({ open, onOpenChange, shipment, onStatusChange
     vehicleType: detail?.vehicleType || "—",
     driverName: s.driverName || (typeof s.driverId === "object" ? s.driverId?.name : "—"),
     driverPhone: s.driverPhone || (typeof s.driverId === "object" ? s.driverId?.phone : "—"),
+    supervisorName: s.supervisorName || (typeof s.supervisorId === "object" ? s.supervisorId?.name : ""),
+    supervisorEmployeeId: s.supervisorEmployeeId || (typeof s.supervisorId === "object" ? s.supervisorId?.employeeId : ""),
+    supervisorPhone: typeof s.supervisorId === "object" ? s.supervisorId?.phone : "",
   };
 
   const handleStatusUpdate = async (newStatus) => {

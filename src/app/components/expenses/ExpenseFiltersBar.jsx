@@ -74,6 +74,7 @@ export function ExpenseFiltersBar({
             <SelectItem value="all">All Categories</SelectItem>
             <SelectItem value="dispatch">Dispatch Expenses</SelectItem>
             <SelectItem value="maintenance">Maintenance Expenses</SelectItem>
+            <SelectItem value="miscellaneous">Miscellaneous Expenses</SelectItem>
           </SelectContent>
         </Select>
 

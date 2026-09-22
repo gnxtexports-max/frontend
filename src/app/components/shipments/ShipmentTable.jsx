@@ -172,9 +172,9 @@ export function ShipmentTable({
           </div>
         )}
 
-        <Table>
-          <TableHeader className="sticky top-0 z-10 bg-[#fafbfc]">
-            <TableRow className="hover:bg-transparent bg-[#fafbfc]">
+        <Table className="w-full border-collapse">
+          <TableHeader className="sticky top-0 z-20 bg-[#fafbfc] [&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:bg-[#fafbfc] [&_th]:border-b [&_th]:border-border shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+            <TableRow className="hover:bg-transparent bg-[#fafbfc] border-b">
               <TableHead className="pl-5 w-[160px]">Shipment ID</TableHead>
               <TableHead className="w-[140px]">Plant Number</TableHead>
               <TableHead className="w-[220px]">Dealer & Location</TableHead>

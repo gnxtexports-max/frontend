@@ -153,6 +153,18 @@ const MODULE_PERMISSIONS = [
     ],
   },
   {
+    key: "supervisors",
+    label: "Supervisors",
+    icon: UserCheck,
+    color: "text-blue-600",
+    bgColor: "bg-blue-50",
+    description: "Supervisor profile and assignment management",
+    permissions: [
+      { key: "view_supervisors", label: "View Supervisors" },
+      { key: "add_edit_supervisors", label: "Add / Edit Supervisors" },
+    ],
+  },
+  {
     key: "reports",
     label: "Reports",
     icon: BarChart2,
@@ -238,6 +250,9 @@ const mapLegacyToGranular = (legacyPerms, roleName) => {
     } else if (modName === "drivers") {
       perms["view_drivers"] = lp.view;
       perms["add_edit_drivers"] = lp.edit;
+    } else if (modName === "supervisors") {
+      perms["view_supervisors"] = lp.view;
+      perms["add_edit_supervisors"] = lp.edit || lp.create;
     } else if (modName === "reports" || modName === "reports & analytics") {
       perms["view_reports"] = lp.view;
       perms["export_reports"] = lp.edit || lp.view;
@@ -258,6 +273,7 @@ const REDIRECT_PAGES = [
   { perm: "Expenses",     path: "/expenses" },
   { perm: "Vehicles",     path: "/vehicles" },
   { perm: "Drivers",      path: "/drivers" },
+  { perm: "Supervisors",  path: "/supervisors" },
   { perm: "Reports",      path: "/reports" },
   { perm: "Help & Support",path: "/help" },
 ];

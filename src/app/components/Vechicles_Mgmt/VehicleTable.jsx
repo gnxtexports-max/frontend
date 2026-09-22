@@ -340,7 +340,7 @@ export default function VehicleTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                vehicles.map((vehicle) => (
+                (Array.isArray(vehicles) ? vehicles : []).map((vehicle) => (
                   <VehicleTableRow
                     key={vehicle._id}
                     vehicle={vehicle}

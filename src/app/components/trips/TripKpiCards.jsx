@@ -6,7 +6,9 @@ function KpiCard({ icon, label, value, sub, highlight }) {
       ? "border-emerald-200"
       : highlight === "blue"
         ? "border-blue-200"
-        : "border-slate-200"
+        : highlight === "purple"
+          ? "border-purple-200"
+          : "border-slate-200"
     : "border-border";
 
   return (
@@ -30,9 +32,9 @@ export function TripKpiCards({ statusCounts }) {
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <KpiCard
         icon={<Truck className="w-4 h-4 text-[#1d4ed8]" />}
-        label="Total Vehicles"
+        label="Total Active Vehicles"
         value={`${statusCounts.all || 0}`}
-        sub="Across all trips"
+        sub="Currently on active trips"
       />
       <KpiCard
         icon={<Activity className="w-4 h-4 text-emerald-500" />}
@@ -49,11 +51,11 @@ export function TripKpiCards({ statusCounts }) {
         highlight="blue"
       />
       <KpiCard
-        icon={<MapPin className="w-4 h-4 text-slate-500" />}
-        label="Idle Fleet"
-        value={`${statusCounts.Idle || 0}`}
-        sub="Available for assignment"
-        highlight="slate"
+        icon={<MapPin className="w-4 h-4 text-purple-500" />}
+        label="Vehicle Arrival Pending"
+        value={`${statusCounts["Vehicle Arrival Pending"] || 0}`}
+        sub="Delivered & awaiting arrival note"
+        highlight="purple"
       />
     </div>
   );

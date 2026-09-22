@@ -1,19 +1,20 @@
-import { Wallet, Fuel, Truck, Wrench, MoreHorizontal } from "lucide-react";
+import { Wallet, Fuel, Truck, Wrench, Briefcase } from "lucide-react";
 
 function SummaryCard({ icon, label, amount, accent }) {
   const bgMap = {
     blue: "bg-blue-50/60 border-blue-100",
     indigo: "bg-indigo-50/60 border-indigo-100",
     purple: "bg-purple-50/60 border-purple-100",
+    amber: "bg-amber-50/60 border-amber-100",
     orange: "bg-orange-50/60 border-orange-100",
     gray: "bg-gray-50/60 border-gray-100",
   };
 
   return (
-    <div className={`rounded-xl border p-4 ${bgMap[accent] || bgMap.gray} transition-colors`}>
+    <div className={`rounded-xl border p-4 ${bgMap[accent] || bgMap.gray} transition-colors shadow-xs`}>
       <div className="flex items-center gap-2 mb-2">
         {icon}
-        <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
+        <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
           {label}
         </span>
       </div>
@@ -28,11 +29,11 @@ export function ExpenseSummaryCards({
   totalExpenses,
   dispatchTotal = 0,
   maintenanceTotal = 0,
-  fuelCost,
-  otherExpenses,
+  miscTotal = 0,
+  fuelCost = 0,
 }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       <SummaryCard
         icon={<Wallet className="w-4 h-4 text-[#1d4ed8]" />}
         label="Total Expenses"
@@ -52,18 +53,19 @@ export function ExpenseSummaryCards({
         accent="purple"
       />
       <SummaryCard
+        icon={<Briefcase className="w-4 h-4 text-[#d97706]" />}
+        label="Misc Expenses"
+        amount={miscTotal}
+        accent="amber"
+      />
+      <SummaryCard
         icon={<Fuel className="w-4 h-4 text-[#ea580c]" />}
         label="Fuel Cost"
         amount={fuelCost}
         accent="orange"
       />
-      <SummaryCard
-        icon={<MoreHorizontal className="w-4 h-4 text-[#6b7280]" />}
-        label="Other Expenses"
-        amount={otherExpenses}
-        accent="gray"
-      />
     </div>
   );
 }
+
 export default ExpenseSummaryCards;

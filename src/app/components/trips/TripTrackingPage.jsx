@@ -90,69 +90,65 @@ export function TripTrackingPage() {
   };
 
   const getCombinedVehicles = () => {
-    return vehicles.map(vehicle => {
-      // Show all non-cancelled shipments (including Closed — arrival already submitted)
-      const activeShipment = shipments.find(
-        s => s.vehicleNumber === vehicle.vehicleNo && s.status !== "Cancelled"
-      );
+    const activeList = [];
 
-      // Find GPS location for this vehicle
-      const gps = gpsLocations.find(g => g.vehicleNo === vehicle.vehicleNo);
+    shipments.forEach((shipment) => {
+      if (!shipment || shipment.status === "Cancelled") return;
 
-      const isDispatched = activeShipment?.status === "In Transit";
-      const isReturning = activeShipment?.status === "Delivered";
+      // REQUIREMENT 1: Don't show shipment after "vehicle arrived"
+      if (shipment.returnedDate || shipment.status === "Arrived") return;
 
-      let finalStatus = "Idle";
-      if (activeShipment) {
-        if (activeShipment.status === "Pending") {
-          finalStatus = "Waiting for Dispatch";
-        } else if (activeShipment.status === "In Transit") {
-          finalStatus = "In Transit";
-        } else         if (activeShipment.status === "Delivered") {
-          finalStatus = "Returning";
-        } else if (activeShipment.status === "Closed" && activeShipment.returnedDate) {
-          finalStatus = "Arrived";
-        } else if (activeShipment.status === "Closed") {
-          finalStatus = "Awaiting Arrival";
-        } else {
-          finalStatus = activeShipment.status;
-        }
-      } else if (vehicle.status === "Assigned" || vehicle.status === "In Transit") {
-        finalStatus = "Idle";
+      const vehicle = vehicles.find((v) => v.vehicleNo === shipment.vehicleNumber) || {
+        vehicleNo: shipment.vehicleNumber,
+        ownership: "Rented",
+        status: "Active",
+      };
+
+      const gps = gpsLocations.find((g) => g.vehicleNo === shipment.vehicleNumber);
+
+      let finalStatus = "Waiting for Dispatch";
+      if (shipment.status === "Pending") {
+        finalStatus = "Waiting for Dispatch";
+      } else if (shipment.status === "In Transit") {
+        finalStatus = "In Transit";
+      } else if (shipment.status === "Delivered" || shipment.status === "Closed") {
+        finalStatus = "Vehicle Arrival Pending";
       } else {
-        finalStatus = vehicle.status || "Idle";
+        finalStatus = shipment.status;
       }
 
       const vehicleType = vehicle.ownership === "Company" ? "Own" : "Rented";
 
-      return {
-        vehicleNumber: vehicle.vehicleNo,
-        driverName: activeShipment?.driverName || "Idle Driver",
-        driverPhone: activeShipment?.driverPhone || "---",
-        shipmentId: activeShipment?.shipmentId || "---",
-        shipmentDbId: activeShipment?._id || null,
-        shipmentStatus: activeShipment?.status || null,
-        hasReturnedDate: !!activeShipment?.returnedDate,
-        dealerName: activeShipment?.destinations?.[0]?.customerName || "---",
-        dealerLocation: activeShipment?.destinations?.[0]?.deliveryLocation || "---",
+      activeList.push({
+        vehicleNumber: shipment.vehicleNumber || vehicle.vehicleNo,
+        driverName: shipment.driverName || "---",
+        driverPhone: shipment.driverPhone || "---",
+        shipmentId: shipment.shipmentId || "---",
+        shipmentDbId: shipment._id,
+        shipmentStatus: shipment.status,
+        hasReturnedDate: !!shipment.returnedDate,
+        dealerName: shipment.destinations?.[0]?.customerName || "---",
+        dealerLocation: shipment.destinations?.[0]?.deliveryLocation || "---",
         origin: "Mumbai Warehouse, Bhiwandi",
         status: finalStatus,
-        isReturning,
+        isReturning: shipment.status === "Delivered",
         currentLocation: gps?.lat != null ? `${gps.lat.toFixed(4)}° N, ${gps.lng.toFixed(4)}° E` : "Mumbai Warehouse, Bhiwandi",
         currentSpeed: gps?.speed != null ? `${gps.speed.toFixed(1)} km/h` : "0 km/h",
         avgSpeed: gps?.speed != null ? `${Math.max(10, gps.speed * 0.9).toFixed(1)} km/h` : "0 km/h",
-        totalDistance: activeShipment ? 200 : 0,
-        distanceCovered: activeShipment ? (gps?.speed > 0 ? 120 : 0) : 0,
-        remainingDistance: activeShipment ? (gps?.speed > 0 ? 80 : 200) : 0,
-        percentComplete: activeShipment ? (gps?.speed > 0 ? 60 : 0) : 0,
-        eta: activeShipment ? "2h 30m" : "---",
-        departedTime: activeShipment?.dispatchDate ? format(new Date(activeShipment.dispatchDate), "hh:mm a") : "---",
+        totalDistance: 200,
+        distanceCovered: gps?.speed > 0 ? 120 : 0,
+        remainingDistance: gps?.speed > 0 ? 80 : 200,
+        percentComplete: gps?.speed > 0 ? 60 : 0,
+        eta: "2h 30m",
+        departedTime: shipment.dispatchDate ? format(new Date(shipment.dispatchDate), "hh:mm a") : "---",
         lastUpdated: gps?.fixTime ? format(new Date(gps.fixTime), "hh:mm a") : "---",
         vehicleType,
         delay: null,
-        dispatched: isDispatched
-      };
+        dispatched: shipment.status === "In Transit" || shipment.status === "Delivered" || shipment.status === "Closed",
+      });
     });
+
+    return activeList;
   };
 
   const combinedVehicles = getCombinedVehicles();
@@ -193,9 +189,11 @@ export function TripTrackingPage() {
       v.currentLocation.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "all" ? true :
-        statusFilter === "active" ? v.status !== "Idle" :
-          v.status === statusFilter;
+      statusFilter === "all" || statusFilter === "active"
+        ? true
+        : (statusFilter === "Vehicle Arrival Pending" || statusFilter === "Vehicle Arrival")
+          ? (v.status === "Vehicle Arrival Pending" || v.status === "Vehicle Arrival")
+          : v.status === statusFilter;
 
     const matchesType =
       vehicleTypeFilter === "all" || v.vehicleType === vehicleTypeFilter;
@@ -209,16 +207,17 @@ export function TripTrackingPage() {
     all: combinedVehicles.length,
     "In Transit": combinedVehicles.filter((v) => v.status === "In Transit").length,
     "Waiting for Dispatch": combinedVehicles.filter((v) => v.status === "Waiting for Dispatch").length,
-    "Returning": combinedVehicles.filter((v) => v.status === "Returning").length,
-    "Awaiting Arrival": combinedVehicles.filter((v) => v.status === "Awaiting Arrival").length,
-    "Arrived": combinedVehicles.filter((v) => v.status === "Arrived").length,
-    Idle: combinedVehicles.filter((v) => v.status === "Idle").length,
+    "Vehicle Arrival Pending": combinedVehicles.filter((v) => v.status === "Vehicle Arrival Pending" || v.status === "Vehicle Arrival").length,
   };
 
   return (
     <TooltipProvider>
-      <div className="h-full flex flex-col p-6 gap-6">
-        <TripHeader totalVehicles={combinedVehicles.length} />
+      <div className="flex flex-col p-6 gap-6 min-h-full pb-10">
+        <TripHeader
+          totalVehicles={combinedVehicles.length}
+          onRefresh={fetchTripData}
+          loading={loading}
+        />
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <p className="text-muted-foreground">Loading trip tracking details...</p>

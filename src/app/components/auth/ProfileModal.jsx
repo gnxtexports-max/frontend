@@ -42,6 +42,7 @@ export function ProfileModal({ isOpen, onClose, user }) {
     { name: "Expenses", key: "expenses" },
     { name: "Vehicles", key: "vehicles" },
     { name: "Drivers", key: "drivers" },
+    { name: "Supervisors", key: "supervisors" },
     { name: "Dealers", key: "dealers" },
     { name: "Reports", key: "reports" },
   ];

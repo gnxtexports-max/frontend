@@ -6,6 +6,7 @@ import { TripTrackingPage } from "./components/trips/TripTrackingPage";
 import { VehicleTrackingPage } from "./components/vehicle-tracking/VehicleTrackingPage";
 import { PlaceholderPage } from "./components/PlaceholderPage";
 import { DriversPage } from "./components/drivers/DriversPage";
+import { SupervisorsPage } from "./components/supervisors/SupervisorsPage";
 import { VehiclesPage } from "./components/Vechicles_Mgmt/VehiclesPage";
 import { ReportsPage } from "./components/ReportsPage";
 import { ExpensesPage } from "./components/expenses/ExpensesPage";
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: "diesel", Component: PlaceholderPage },
       { path: "vehicles", Component: VehiclesPage },
       { path: "drivers", Component: DriversPage },
+      { path: "supervisors", Component: SupervisorsPage },
       { path: "reports", Component: ReportsPage },
       { path: "invoices", Component: InvoicesPage },
       { path: "expenses", Component: ExpensesPage },

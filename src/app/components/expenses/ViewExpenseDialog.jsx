@@ -137,7 +137,12 @@ export function ViewExpenseDialog({ expense, onClose }) {
                     }
                   } else {
                     const base = (import.meta.env?.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
-                    window.open(`${base}${url}`, "_blank");
+                    const targetUrl = url.startsWith("http")
+                      ? (url.includes("cloudflarestorage.com") || url.includes("r2.dev")
+                          ? `${base}/api/expenses/${expense._id || expense.id}/receipt`
+                          : url)
+                      : `${base}${url.startsWith("/") ? "" : "/"}${url}`;
+                    window.open(targetUrl, "_blank");
                   }
                 }}
               >
