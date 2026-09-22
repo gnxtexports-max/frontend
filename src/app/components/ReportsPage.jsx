@@ -98,7 +98,15 @@ export function ReportsPage() {
       try {
         const res = await fetch(`${import.meta.env?.VITE_API_URL || "http://localhost:5000/api"}/reports/filters`);
         const json = await res.json();
-        if (json.success) setFilterOptions(json.data);
+        if (json.success && json.data) {
+          setFilterOptions({
+            vehicles: Array.isArray(json.data.vehicles) ? json.data.vehicles : [],
+            drivers: Array.isArray(json.data.drivers) ? json.data.drivers : [],
+            dealers: Array.isArray(json.data.dealers) ? json.data.dealers : [],
+            lrNumbers: Array.isArray(json.data.lrNumbers) ? json.data.lrNumbers : [],
+            plantNumbers: Array.isArray(json.data.plantNumbers) ? json.data.plantNumbers : [],
+          });
+        }
       } catch (err) {
         console.error("Error fetching filters:", err);
       }
@@ -127,7 +135,7 @@ export function ReportsPage() {
 
         const res = await fetch(`${import.meta.env?.VITE_API_URL || "http://localhost:5000/api"}/reports/stats?${queryParams.toString()}`);
         const json = await res.json();
-        if (json.success) {
+        if (json.success && json.data) {
           setStats(json.data.stats || {
             totalShipments: 0,
             activeShipments: 0,
@@ -135,11 +143,11 @@ export function ReportsPage() {
             totalExpenses: 0,
             completedInvoices: 0,
           });
-          setShipments(json.data.shipments || []);
-          setInvoices(json.data.invoices || []);
+          setShipments(Array.isArray(json.data.shipments) ? json.data.shipments : []);
+          setInvoices(Array.isArray(json.data.invoices) ? json.data.invoices : []);
           setInvoiceStatusCounts(json.data.invoiceStatusCounts || { awaitingShipment: 0, despatched: 0, delivered: 0, cancelled: 0, total: 0 });
           setFleet(json.data.fleet || { drivers: [], vehicles: [] });
-          setTimeline(json.data.timeline || []);
+          setTimeline(Array.isArray(json.data.timeline) ? json.data.timeline : []);
         }
       } catch (err) {
         console.error("Error fetching stats:", err);
@@ -286,6 +294,27 @@ export function ReportsPage() {
     }
   };
 
+  const availablePlantNumbers = Array.from(new Set([
+    ...(Array.isArray(filterOptions?.plantNumbers) ? filterOptions.plantNumbers : []),
+    ...(Array.isArray(invoices) ? invoices.map((i) => i.plant || i.plantReferenceNumber || i.plantNumber) : [])
+  ])).filter(Boolean).sort();
+
+  const availableDealers = Array.from(new Set([
+    ...(Array.isArray(filterOptions?.dealers) ? filterOptions.dealers : []),
+    ...(Array.isArray(invoices) ? invoices.map((i) => i.customer || i.customerName) : []),
+    ...(Array.isArray(shipments) ? shipments.map((s) => s.customerName) : [])
+  ])).filter(Boolean).sort();
+
+  const availableVehicles = Array.from(new Set([
+    ...(Array.isArray(filterOptions?.vehicles) ? filterOptions.vehicles : []),
+    ...(Array.isArray(shipments) ? shipments.map((s) => s.vehicleNumber) : [])
+  ])).filter(Boolean).sort();
+
+  const availableDrivers = Array.from(new Set([
+    ...(Array.isArray(filterOptions?.drivers) ? filterOptions.drivers : []),
+    ...(Array.isArray(shipments) ? shipments.map((s) => s.driverName) : [])
+  ])).filter(Boolean).sort();
+
   return (
     <div id="printable-report" className="p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
       {/* ── HEADER ── */}
@@ -390,7 +419,7 @@ export function ReportsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Plants</SelectItem>
-              {filterOptions.plantNumbers.filter(Boolean).map((p) => (
+              {availablePlantNumbers.map((p) => (
                 <SelectItem key={p} value={p}>{p}</SelectItem>
               ))}
             </SelectContent>
@@ -404,7 +433,7 @@ export function ReportsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Dealers</SelectItem>
-              {filterOptions.dealers.filter(Boolean).map((dl) => (
+              {availableDealers.map((dl) => (
                 <SelectItem key={dl} value={dl}>{dl}</SelectItem>
               ))}
             </SelectContent>
@@ -418,7 +447,7 @@ export function ReportsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Vehicles</SelectItem>
-              {filterOptions.vehicles.filter(Boolean).map((v) => (
+              {availableVehicles.map((v) => (
                 <SelectItem key={v} value={v}>{v}</SelectItem>
               ))}
             </SelectContent>
@@ -432,7 +461,7 @@ export function ReportsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Drivers</SelectItem>
-              {filterOptions.drivers.filter(Boolean).map((d) => (
+              {availableDrivers.map((d) => (
                 <SelectItem key={d} value={d}>{d}</SelectItem>
               ))}
             </SelectContent>
@@ -496,7 +525,7 @@ export function ReportsPage() {
         {[
           {
             label: "Total Shipments Dispatch",
-            value: stats.totalShipments.toLocaleString(),
+            value: (stats?.totalShipments ?? 0).toLocaleString(),
             trend: "+12%",
             up: true,
             icon: Package,
@@ -506,7 +535,7 @@ export function ReportsPage() {
           },
           {
             label: "In Transit / Active",
-            value: stats.activeShipments.toLocaleString(),
+            value: (stats?.activeShipments ?? 0).toLocaleString(),
             trend: "+5%",
             up: true,
             icon: Clock,
@@ -516,7 +545,7 @@ export function ReportsPage() {
           },
           {
             label: "Completed Deliveries",
-            value: stats.completedShipments.toLocaleString(),
+            value: (stats?.completedShipments ?? 0).toLocaleString(),
             trend: "+8%",
             up: true,
             icon: CheckCircle2,
@@ -526,7 +555,7 @@ export function ReportsPage() {
           },
           {
             label: "Operational Expenses",
-            value: `₹${stats.totalExpenses.toLocaleString("en-IN")}`,
+            value: `₹${(stats?.totalExpenses ?? 0).toLocaleString("en-IN")}`,
             trend: "-2.5%",
             up: false,
             icon: DollarSign,
@@ -536,7 +565,7 @@ export function ReportsPage() {
           },
           {
             label: "Invoices Completed",
-            value: stats.completedInvoices.toLocaleString(),
+            value: (stats?.completedInvoices ?? 0).toLocaleString(),
             trend: "+15%",
             up: true,
             icon: FileText,
@@ -920,11 +949,11 @@ export function ReportsPage() {
               {/* Status summary badges */}
               <div className="flex flex-wrap items-center gap-2 no-print">
                 {[
-                  { label: "Total Invoices", value: invoiceStatusCounts.total, cls: "bg-slate-100 text-slate-700 border-slate-200" },
-                  { label: "Awaiting Shipment", value: invoiceStatusCounts.awaitingShipment, cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
-                  { label: "Despatched", value: invoiceStatusCounts.despatched, cls: "bg-blue-50 text-blue-700 border-blue-200" },
-                  { label: "Delivered", value: invoiceStatusCounts.delivered, cls: "bg-teal-50 text-teal-800 border-teal-200" },
-                  { label: "Cancelled", value: invoiceStatusCounts.cancelled, cls: "bg-rose-50 text-rose-700 border-rose-200" },
+                  { label: "Total Invoices", value: invoiceStatusCounts?.total ?? 0, cls: "bg-slate-100 text-slate-700 border-slate-200" },
+                  { label: "Awaiting Shipment", value: invoiceStatusCounts?.awaitingShipment ?? 0, cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+                  { label: "Despatched", value: invoiceStatusCounts?.despatched ?? 0, cls: "bg-blue-50 text-blue-700 border-blue-200" },
+                  { label: "Delivered", value: invoiceStatusCounts?.delivered ?? 0, cls: "bg-teal-50 text-teal-800 border-teal-200" },
+                  { label: "Cancelled", value: invoiceStatusCounts?.cancelled ?? 0, cls: "bg-rose-50 text-rose-700 border-rose-200" },
                 ].map((s) => (
                   <div key={s.label} className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold", s.cls)}>
                     <span>{s.label}:</span>
